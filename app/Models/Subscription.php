@@ -10,139 +10,102 @@ class Subscription extends Model
 {
     use HasFactory;
 
-    /**
-     * Mass assignable fields
-     */
+    /* ===========================
+     * MASS ASSIGNABLE
+     * =========================== */
     protected $fillable = [
         'customer_id',
         'plan_id',
-        'start_date',
-        'end_date',
+        'price',
+        'starts_at',
+        'expires_at',
         'status',
         'auto_renew',
     ];
 
-    /**
-     * Attribute casting
-     */
+    /* ===========================
+     * CASTS
+     * =========================== */
     protected $casts = [
-        'start_date' => 'date',
-        'end_date'   => 'date',
+        'starts_at'  => 'datetime',
+        'expires_at' => 'datetime',
         'auto_renew' => 'boolean',
     ];
 
-    /**
-     * ===========================
+    /* ===========================
      * RELATIONSHIPS
-     * ===========================
-     */
-
-    /**
-     * Subscription belongs to a customer
-     */
+     * =========================== */
     public function customer()
     {
         return $this->belongsTo(Customer::class);
     }
 
-    /**
-     * Subscription has many payments
-     */
+    public function plan()
+    {
+        return $this->belongsTo(SubscriptionPlan::class);
+    }
+
     public function payments()
     {
         return $this->hasMany(Payment::class);
     }
 
-    /**
-     * ===========================
+    /* ===========================
      * SCOPES
-     * ===========================
-     */
-
-    /**
-     * Only active subscriptions
-     */
+     * =========================== */
     public function scopeActive($query)
     {
-        return $query->where('status', 'active');
+        return $query
+            ->where('status', 'active')
+            ->where('expires_at', '>=', now());
     }
 
-    /**
-     * Only expired subscriptions
-     */
     public function scopeExpired($query)
     {
-        return $query->whereDate('end_date', '<', now());
+        return $query->where('expires_at', '<', now());
     }
 
-    /**
-     * ===========================
+    /* ===========================
      * HELPERS / LOGIC
-     * ===========================
-     */
-
-    /**
-     * Check if subscription is active
-     */
+     * =========================== */
     public function isActive(): bool
     {
         return $this->status === 'active'
-            && $this->end_date >= now();
+            && $this->expires_at->isFuture();
     }
 
-    /**
-     * Check if subscription is expired
-     */
     public function isExpired(): bool
     {
-        return $this->end_date < now();
+        return $this->expires_at->isPast();
     }
 
-    /**
-     * Days remaining until expiry
-     */
     public function daysRemaining(): int
     {
-        return now()->diffInDays($this->end_date, false);
+        return now()->diffInDays($this->expires_at, false);
     }
 
-    /**
-     * Extend subscription by days
-     */
     public function extendDays(int $days): void
     {
-        $this->end_date = Carbon::parse($this->end_date)->addDays($days);
-        $this->save();
-    }
-
-    /**
-     * Pause subscription
-     */
-    public function pause(): void
-    {
         $this->update([
-            'status' => 'paused',
+            'expires_at' => Carbon::parse($this->expires_at)->addDays($days),
         ]);
     }
 
-    /**
-     * Cancel subscription
-     */
+    public function pause(): void
+    {
+        $this->update(['status' => 'paused']);
+    }
+
+    public function resume(): void
+    {
+        $this->update(['status' => 'active']);
+    }
+
     public function cancel(): void
     {
         $this->update([
             'status' => 'cancelled',
             'auto_renew' => false,
-        ]);
-    }
-
-    /**
-     * Resume subscription
-     */
-    public function resume(): void
-    {
-        $this->update([
-            'status' => 'active',
         ]);
     }
 }

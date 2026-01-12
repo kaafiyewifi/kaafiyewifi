@@ -1,28 +1,28 @@
 @extends('layouts.admin')
 
 @section('content')
-
-<h1 class="text-2xl font-bold mb-6 text-left">
-    Dashboard
-</h1>
-
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-    <div class="bg-white rounded-xl p-6 shadow text-center">
-        <p class="text-sm text-gray-500">Today Revenue</p>
-        <p class="text-3xl font-bold text-orange-600">$0.00</p>
+    <div class="space-y-6">
+        <h1 class="text-2xl font-bold">Dashboard</h1>
+        
+        <!-- Dashboard stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                <h3 class="text-lg font-semibold">Users</h3>
+                <p class="text-3xl font-bold mt-2">12</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                <h3 class="text-lg font-semibold">Today Revenue</h3>
+                <p class="text-3xl font-bold mt-2">$0.00</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                <h3 class="text-lg font-semibold">Total Revenue</h3>
+                <p class="text-3xl font-bold mt-2">$0.00</p>
+            </div>
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                <h3 class="text-lg font-semibold">Total Revenue</h3>
+                <p class="text-3xl font-bold mt-2">$0.00</p>
+            </div>
+            
+        </div>
     </div>
-
-    <div class="bg-white rounded-xl p-6 shadow text-center">
-        <p class="text-sm text-gray-500">This Month</p>
-        <p class="text-3xl font-bold text-orange-600">$0.00</p>
-    </div>
-
-    <div class="bg-white rounded-xl p-6 shadow text-center">
-        <p class="text-sm text-gray-500">Total Revenue</p>
-        <p class="text-3xl font-bold text-orange-600">$0.00</p>
-    </div>
-
-</div>
-
 @endsection

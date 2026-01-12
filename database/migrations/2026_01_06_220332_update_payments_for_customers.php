@@ -10,7 +10,7 @@ return new class extends Migration {
     {
         Schema::table('payments', function (Blueprint $table) {
 
-            // Customer link (Phase 3)
+            // Customer link
             if (!Schema::hasColumn('payments', 'customer_id')) {
                 $table->foreignId('customer_id')
                       ->nullable()
@@ -19,16 +19,14 @@ return new class extends Migration {
                       ->nullOnDelete();
             }
 
-            // Subscription link
+            // Subscription link (FK later)
             if (!Schema::hasColumn('payments', 'subscription_id')) {
-                $table->foreignId('subscription_id')
+                $table->unsignedBigInteger('subscription_id')
                       ->nullable()
-                      ->after('customer_id')
-                      ->constrained()
-                      ->nullOnDelete();
+                      ->after('customer_id');
             }
 
-            // Paid timestamp (analytics)
+            // Paid timestamp
             if (!Schema::hasColumn('payments', 'paid_at')) {
                 $table->timestamp('paid_at')->nullable()->after('status');
             }

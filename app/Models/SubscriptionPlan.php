@@ -10,7 +10,6 @@ class SubscriptionPlan extends Model
     use HasFactory;
 
     protected $fillable = [
-
         'name',
         'price',
 
@@ -25,28 +24,10 @@ class SubscriptionPlan extends Model
         'data_unit',
 
         'devices',
+        'status',
     ];
 
-    /* ======================
-     | ACCESSORS (OPTIONAL)
-     |======================*/
-
-    public function getSpeedTextAttribute()
-    {
-        return "↓ {$this->download_speed} {$this->download_unit} / ↑ {$this->upload_speed} {$this->upload_unit}";
-    }
-
-    public function getDataTextAttribute()
-    {
-        if ($this->data_type === 'unlimited') {
-            return 'Unlimited';
-        }
-
-        return "{$this->data_limit} {$this->data_unit}";
-    }
-    public function subscriptions()
-    {
-    return $this->hasMany(CustomerSubscription::class);
-    }
-
+    protected $casts = [
+        'status' => 'boolean',
+    ];
 }

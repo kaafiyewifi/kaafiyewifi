@@ -13,9 +13,17 @@ class SubscriptionPlanController extends Controller
      |=========================*/
     public function index()
     {
-        $plans = SubscriptionPlan::latest()->get();
+        $plans = SubscriptionPlan::latest()->paginate(10);
 
-        return view('admin.subscription_plans.index', compact('plans'));
+        return view('admin.subscription-plans.index', compact('plans'));
+    }
+
+    /* =========================
+     | CREATE FORM
+     |=========================*/
+    public function create()
+    {
+        return view('admin.subscription-plans.create');
     }
 
     /* =========================
@@ -27,75 +35,27 @@ class SubscriptionPlanController extends Controller
             'name'            => 'required|string|max:255',
             'price'           => 'required|numeric|min:0',
 
-            'download_speed'  => 'nullable|integer|min:0',
-            'download_unit'   => 'nullable|string|max:10',
+            'download_speed'  => 'nullable|integer|min:1',
+            'download_unit'   => 'nullable|in:Mbps,Kbps,Gbps',
 
-            'upload_speed'    => 'nullable|integer|min:0',
-            'upload_unit'     => 'nullable|string|max:10',
+            'upload_speed'    => 'nullable|integer|min:1',
+            'upload_unit'     => 'nullable|in:Mbps,Kbps,Gbps',
 
             'data_type'       => 'required|in:limited,unlimited',
-            'data_limit'      => 'nullable|integer|min:0',
-            'data_unit'       => 'nullable|string|max:10',
+            'data_limit'      => 'nullable|integer|min:1',
+            'data_unit'       => 'nullable|in:MB,GB',
 
             'devices'         => 'required|integer|min:1',
+            'status'          => 'required|boolean',
         ]);
-
-        // haddii unlimited → data_limit null
-        if ($data['data_type'] === 'unlimited') {
-            $data['data_limit'] = null;
-            $data['data_unit']  = null;
-        }
 
         SubscriptionPlan::create($data);
 
         return redirect()
             ->route('admin.subscription-plans.index')
-            ->with('success','Subscription plan created successfully');
-    }
-
-    /* =========================
-     | UPDATE
-     |=========================*/
-    public function update(Request $request, SubscriptionPlan $subscription_plan)
-    {
-        $data = $request->validate([
-            'name'            => 'required|string|max:255',
-            'price'           => 'required|numeric|min:0',
-
-            'download_speed'  => 'nullable|integer|min:0',
-            'download_unit'   => 'nullable|string|max:10',
-
-            'upload_speed'    => 'nullable|integer|min:0',
-            'upload_unit'     => 'nullable|string|max:10',
-
-            'data_type'       => 'required|in:limited,unlimited',
-            'data_limit'      => 'nullable|integer|min:0',
-            'data_unit'       => 'nullable|string|max:10',
-
-            'devices'         => 'required|integer|min:1',
-        ]);
-
-        if ($data['data_type'] === 'unlimited') {
-            $data['data_limit'] = null;
-            $data['data_unit']  = null;
-        }
-
-        $subscription_plan->update($data);
-
-        return redirect()
-            ->route('admin.subscription-plans.index')
-            ->with('success','Subscription plan updated successfully');
-    }
-
-    /* =========================
-     | DELETE
-     |=========================*/
-    public function destroy(SubscriptionPlan $subscription_plan)
-    {
-        $subscription_plan->delete();
-
-        return redirect()
-            ->route('admin.subscription-plans.index')
-            ->with('success','Subscription plan deleted successfully');
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Subscription Plan si guul leh ayaa loo sameeyay'
+            ]);
     }
 }

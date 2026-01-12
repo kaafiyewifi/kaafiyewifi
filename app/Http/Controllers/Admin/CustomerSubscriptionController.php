@@ -4,64 +4,107 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
-use App\Models\CustomerSubscription;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
 class CustomerSubscriptionController extends Controller
 {
+    /* =========================
+     * STORE SUBSCRIPTION (POPUP)
+     * =======================*/
     public function store(Request $request, Customer $customer)
     {
-        $plan = SubscriptionPlan::findOrFail($request->plan_id);
-
-        $days = (int)$request->duration;
-
-        $start = now();
-        $expire = now()->addDays($days);
-
-        CustomerSubscription::create([
-            'customer_id'=>$customer->id,
-            'subscription_plan_id'=>$plan->id,
-            'price'=>$plan->price * $days,
-            'duration_days'=>$days,
-            'starts_at'=>$start,
-            'expires_at'=>$expire,
-            'status'=>'active'
+        $data = $request->validate([
+            'plan_id'   => 'required|exists:subscription_plans,id',
+            'days'      => 'required|integer|min:1',
+            'starts_at' => 'required|date',
         ]);
 
-        return back()->with('success','Subscription added');
+        $plan = SubscriptionPlan::findOrFail($data['plan_id']);
+
+        $startsAt  = Carbon::parse($data['starts_at']);
+        $expiresAt = (clone $startsAt)->addDays($data['days']);
+
+        Subscription::create([
+            'customer_id' => $customer->id,
+            'plan_id'     => $plan->id,
+            'price'       => $plan->price,
+            'starts_at'   => $startsAt,
+            'expires_at'  => $expiresAt,
+            'status'      => 'active',
+            'auto_renew'  => false,
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Subscription si guul leh ayaa loogu daray customer-ka',
+        ]);
     }
 
-    public function extend(CustomerSubscription $sub, Request $request)
+    /* =========================
+     * EXTEND SUBSCRIPTION
+     * =======================*/
+    public function extend(Request $request, Subscription $sub)
     {
-        $days = (int)$request->days;
-        $sub->expires_at = $sub->expires_at->addDays($days);
-        $sub->duration_days += $days;
-        $sub->save();
+        $request->validate([
+            'days' => 'required|integer|min:1',
+        ]);
 
-        return back();
+        $sub->update([
+            'expires_at' => $sub->expires_at->copy()->addDays($request->days),
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Subscription waa la kordhiyay',
+        ]);
     }
 
-    public function pause(CustomerSubscription $sub){
-        $sub->status = 'paused';
-        $sub->save();
-        return back();
+    /* =========================
+     * PAUSE SUBSCRIPTION
+     * =======================*/
+    public function pause(Subscription $sub)
+    {
+        $sub->update([
+            'status' => 'paused',
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'warning',
+            'message' => 'Subscription waa la hakiyay',
+        ]);
     }
 
-    public function resume(CustomerSubscription $sub){
-        $sub->status = 'active';
-        $sub->save();
-        return back();
+    /* =========================
+     * RESUME SUBSCRIPTION
+     * =======================*/
+    public function resume(Subscription $sub)
+    {
+        $sub->update([
+            'status' => 'active',
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Subscription waa la sii waday',
+        ]);
     }
 
-    public function cancel(CustomerSubscription $sub){
-        $sub->status = 'cancelled';
-        $sub->expires_at = now();
-        $sub->save();
-        return back();
+    /* =========================
+     * CANCEL SUBSCRIPTION
+     * =======================*/
+    public function cancel(Subscription $sub)
+    {
+        $sub->update([
+            'status' => 'cancelled',
+            'auto_renew' => false,
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'error',
+            'message' => 'Subscription waa la joojiyay',
+        ]);
     }
 }
-
-
-

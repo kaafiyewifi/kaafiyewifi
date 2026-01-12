@@ -43,61 +43,42 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
 */
 Route::middleware('auth')->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | DASHBOARD
-    |--------------------------------------------------------------------------
-    */
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
-    /*
-    |--------------------------------------------------------------------------
-    | ADMIN AREA
-    |--------------------------------------------------------------------------
-    | Mustaqbalka: ->middleware('role:admin')
-    */
-    Route::prefix('admin')
-        ->name('admin.')
-        //->middleware('role:admin')
-        ->group(function () {
+    Route::prefix('admin')->name('admin.')->group(function () {
 
-        /* =====================
-         | CUSTOMERS
-         |=====================*/
+        // ================= CUSTOMERS =================
         Route::resource('customers', CustomerController::class);
 
-        /* =====================
-         | LOCATIONS
-         |=====================*/
+        // ================= LOCATIONS =================
         Route::resource('locations', LocationController::class);
 
-        /* =====================
-         | ROUTERS
-         |=====================*/
+        // ================= ROUTERS =================
         Route::resource('routers', RouterController::class);
 
-        /* =====================
-         | HOTSPOTS
-         |=====================*/
+        // ================= HOTSPOTS =================
         Route::resource('hotspots', HotspotController::class);
 
-        /* =====================
-         | SUBSCRIPTION PLANS
-         |=====================*/
-        Route::resource('subscription-plans', SubscriptionPlanController::class);
+        // ================= SUBSCRIPTION PLANS =================
+       Route::resource('subscription-plans', SubscriptionPlanController::class);
 
-        /* =====================
-         | CUSTOMER SUBSCRIBE
-         |=====================*/
+
+        // ================= CUSTOMER SUBSCRIBE =================
+
+        // 👉 OPEN SUBSCRIBE PAGE
+        Route::get(
+            'customers/{customer}/subscribe',
+            [CustomerSubscriptionController::class, 'create']
+        )->name('customers.subscribe');
+
+        // 👉 SAVE SUBSCRIPTION
         Route::post(
             'customers/{customer}/subscribe',
             [CustomerSubscriptionController::class, 'store']
-        )->name('customers.subscribe');
+        )->name('customers.subscribe.store');
 
-        /* =====================
-         | SUBSCRIPTION ACTIONS
-         |=====================*/
+        // ================= SUBSCRIPTION ACTIONS =================
         Route::prefix('subscriptions')->name('subs.')->group(function () {
 
             Route::post('{sub}/extend',
@@ -115,9 +96,6 @@ Route::middleware('auth')->group(function () {
             Route::post('{sub}/cancel',
                 [CustomerSubscriptionController::class, 'cancel']
             )->name('cancel');
-
         });
-
     });
-
 });

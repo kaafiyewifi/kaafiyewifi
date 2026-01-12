@@ -1,54 +1,101 @@
-<div x-show="showCreateCustomer" x-cloak
-     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+<div
+    x-show="showCreate"
+    x-cloak
+    x-transition.opacity.duration.200ms
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+>
+    <div
+        @click.away="showCreate=false"
+        class="bg-white w-full max-w-md rounded-xl shadow-lg p-6"
+    >
 
-<form method="POST"
-      action="{{ route('admin.customers.store') }}"
-      class="bg-white w-full max-w-md p-6 rounded-xl space-y-4">
+        {{-- HEADER --}}
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">Create Customer</h2>
+            <button
+                @click="showCreate=false"
+                class="text-gray-400 hover:text-gray-700 text-xl">
+                ✕
+            </button>
+        </div>
 
-@csrf
+        {{-- FORM --}}
+        <form
+            method="POST"
+            action="{{ route('admin.customers.store') }}"
+            class="space-y-4"
+        >
+            @csrf
 
-<h2 class="text-lg font-semibold text-center">Create Customer</h2>
+            {{-- NAME --}}
+            <div>
+                <label class="block text-sm mb-1">Name</label>
+                <input
+                    type="text"
+                    name="name"
+                    required
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                >
+            </div>
 
-<input name="name" required
-       class="w-full border p-2 rounded"
-       placeholder="Name">
+            {{-- PHONE --}}
+            <div>
+                <label class="block text-sm mb-1">Phone</label>
+                <input
+                    type="text"
+                    name="phone"
+                    required
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                >
+            </div>
 
-<input name="phone" required
-       class="w-full border p-2 rounded"
-       placeholder="Phone">
+            {{-- ADDRESS --}}
+            <div>
+                <label class="block text-sm mb-1">Address</label>
+                <input
+                    type="text"
+                    name="address"
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                >
+            </div>
 
-<input name="address"
-       class="w-full border p-2 rounded"
-       placeholder="Address">
+            {{-- LOCATION (NEW ✅) --}}
+            <div>
+                <label class="block text-sm mb-1">Location</label>
+                <select
+                    name="location_id[]"
+                    multiple
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                >
+                    @foreach($locations as $location)
+                        <option value="{{ $location->id }}">
+                            {{ $location->name }}
+                        </option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-400 mt-1">
+                    You can select multiple locations
+                </p>
+            </div>
 
-{{-- LOCATION MULTI SELECT --}}
-<select id="locationSelect"
-        name="location_id[]"
-        multiple
-        class="w-full border p-2 rounded">
-    @foreach($locations as $location)
-        <option value="{{ $location->id }}">
-            {{ $location->name }}
-        </option>
-    @endforeach
-</select>
+            {{-- ACTIONS --}}
+            <div class="flex justify-end gap-2 pt-3">
+                <button
+                    type="button"
+                    @click="showCreate=false"
+                    class="px-4 py-2 border rounded-lg text-sm"
+                >
+                    Cancel
+                </button>
 
-<p class="text-xs text-center text-gray-500">
-    Default password: <b>123456</b>
-</p>
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm"
+                >
+                    Save
+                </button>
+            </div>
+        </form>
 
-<div class="flex gap-3 pt-3">
-    <button type="button"
-            @click="showCreateCustomer=false"
-            class="flex-1 border rounded py-2">
-        Cancel
-    </button>
-
-    <button type="submit"
-            class="flex-1 bg-[#5b146b] text-white rounded py-2">
-        Save
-    </button>
-</div>
-
-</form>
+    </div>
 </div>

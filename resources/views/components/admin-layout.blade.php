@@ -23,6 +23,50 @@ x-init="
     <style>[x-cloak]{display:none}</style>
 </head>
 
+@if(session('toast'))
+<div
+    x-data="{ show: true }"
+    x-init="setTimeout(() => show = false, 3500)"
+    x-show="show"
+    x-transition.opacity.duration.300ms
+    class="fixed top-5 right-5 z-[9999]"
+>
+    <div
+        class="flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white
+        {{ session('toast.type') === 'success' ? 'bg-green-600' : '' }}
+        {{ session('toast.type') === 'error' ? 'bg-red-600' : '' }}
+        {{ session('toast.type') === 'warning' ? 'bg-yellow-500 text-black' : '' }}"
+    >
+        {{-- ICON --}}
+        <span class="text-lg">
+            @if(session('toast.type') === 'success') ✅ @endif
+            @if(session('toast.type') === 'error') ❌ @endif
+            @if(session('toast.type') === 'warning') ⚠️ @endif
+        </span>
+
+        {{-- MESSAGE --}}
+        <span class="text-sm font-medium">
+            {{ session('toast.message') }}
+        </span>
+
+        {{-- CLOSE --}}
+        <button @click="show=false" class="ml-2 opacity-70 hover:opacity-100">
+            ✕
+        </button>
+    </div>
+</div>
+@endif
+@if(session('toast'))
+<div
+    x-data="{show:true}"
+    x-init="setTimeout(()=>show=false,3000)"
+    x-show="show"
+    class="fixed top-5 right-5 bg-green-600 text-white px-4 py-2 rounded-lg shadow">
+    {{ session('toast.message') }}
+</div>
+@endif
+
+
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100">
 
 <div class="flex min-h-screen">
