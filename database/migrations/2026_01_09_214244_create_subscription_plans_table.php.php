@@ -31,6 +31,12 @@ return new class extends Migration {
             // DEVICES
             $table->integer('devices')->default(1);
 
+            // ⏳ SUBSCRIPTION DURATION
+            $table->integer('duration_days')->default(30);
+
+            // 🔌 MIKROTIK PROFILE
+            $table->string('router_profile')->nullable();
+
             // STATUS
             $table->boolean('status')->default(true);
 

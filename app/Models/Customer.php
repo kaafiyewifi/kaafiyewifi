@@ -17,8 +17,6 @@ class Customer extends Model
         'status',
     ];
 
-    /* ================= RELATIONS ================= */
-
     public function locations()
     {
         return $this->belongsToMany(Location::class);
@@ -34,14 +32,9 @@ class Customer extends Model
         return $this->hasMany(Device::class);
     }
 
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
     public function subscriptions()
     {
-    return $this->hasMany(CustomerSubscription::class);
+        // ✅ SAXITAAN
+        return $this->hasMany(Subscription::class);
     }
-
 }
-

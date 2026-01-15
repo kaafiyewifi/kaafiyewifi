@@ -11,17 +11,11 @@ return new class extends Migration {
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('customer_id')
-                  ->constrained()
-                  ->cascadeOnDelete();
-
-            $table->foreignId('plan_id')
-                  ->constrained('subscription_plans')
-                  ->cascadeOnDelete();
+            $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('plan_id')->constrained('subscription_plans')->cascadeOnDelete();
 
             $table->decimal('price', 10, 2);
 
-            // ✅ USE DATETIME (NOT TIMESTAMP)
             $table->dateTime('starts_at');
             $table->dateTime('expires_at');
 
@@ -33,6 +27,10 @@ return new class extends Migration {
             ])->default('active');
 
             $table->boolean('auto_renew')->default(false);
+
+            // 🔥 Router integration fields
+            $table->string('router_username')->nullable();
+            $table->string('router_password')->nullable();
 
             $table->timestamps();
         });

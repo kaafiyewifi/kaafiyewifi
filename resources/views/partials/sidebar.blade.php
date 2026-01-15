@@ -81,6 +81,9 @@
                     : 'text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-slate-700' }}">
                 📶 Hotspots
             </a>
+                <a href="{{ route('admin.router.online') }}" class="sidebar-link">
+                🌐 Online Users
+                </a>
 
         </nav>
 

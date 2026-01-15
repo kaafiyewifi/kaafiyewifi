@@ -4,145 +4,139 @@
     x-data="{
         showCreate:false,
         showEdit:false,
-        editCustomer:{},
-        openEdit(customer){
-            this.editCustomer = customer
-            this.showEdit = true
-        }
+        editCustomer:null
     }"
-    class="w-full flex justify-center"
+    class="max-w-7xl mx-auto px-4 py-6"
 >
 
-
-<div class="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
     {{-- HEADER --}}
-    <div class="flex justify-between items-center">
-        <h1 class="text-2xl font-semibold">Customers</h1>
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100">
+            Customers
+        </h1>
 
+        {{-- ✅ CREATE CUSTOMER BUTTON (FIXED) --}}
         <button
             @click="showCreate = true"
-            class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm transition">
+            class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-medium shadow"
+        >
             + Create Customer
         </button>
     </div>
 
-    {{-- TABLE CARD --}}
-    <div class="bg-white rounded-xl shadow border overflow-hidden">
+    {{-- CARD --}}
+    <div class="bg-white dark:bg-slate-900 rounded-xl shadow border dark:border-slate-700">
 
         {{-- SEARCH --}}
-        <div class="flex justify-end px-4 py-4 border-b">
-            <form method="GET" class="relative w-full sm:w-72">
+        <div class="p-4 border-b dark:border-slate-700 flex justify-end">
+            <form method="GET" class="w-full max-w-sm">
                 <input
-                    type="text"
                     name="q"
                     value="{{ request('q') }}"
                     placeholder="Search customer..."
-                    class="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring focus:ring-indigo-200"
+                    class="w-full px-4 py-2 rounded-lg border
+                           bg-white dark:bg-slate-800
+                           dark:border-slate-700
+                           text-sm"
                 >
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
             </form>
         </div>
 
-        @php
-            $sort = request('sort');
-            $dir  = request('dir','desc');
-            $nextDir = $dir === 'asc' ? 'desc' : 'asc';
-        @endphp
+        {{-- TABLE SCROLL --}}
+        <div class="max-h-[420px] overflow-y-auto">
 
-        {{-- TABLE --}}
-        <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead class="bg-slate-50">
-                <tr>
-                    <th class="px-4 py-3 text-left">
-                        <a href="?sort=id&dir={{ $sort==='id' ? $nextDir : 'asc' }}&q={{ request('q') }}"
-                           class="flex items-center gap-1">
-                            ID
-                            @if($sort==='id') {{ $dir==='asc'?'↑':'↓' }} @endif
-                        </a>
-                    </th>
+            <table class="w-full text-sm">
 
-                    <th class="px-4 py-3 text-left">
-                        <a href="?sort=name&dir={{ $sort==='name' ? $nextDir : 'asc' }}&q={{ request('q') }}"
-                           class="flex items-center gap-1">
-                            Name
-                            @if($sort==='name') {{ $dir==='asc'?'↑':'↓' }} @endif
-                        </a>
-                    </th>
+                {{-- STICKY HEADER --}}
+                <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10">
+                    <tr>
+                        <th class="px-4 py-3">ID</th>
+                        <th class="px-4 py-3">Name</th>
+                        <th class="px-4 py-3">Phone</th>
+                        <th class="px-4 py-3">Address</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
 
-                    <th class="px-4 py-3 text-left">
-                        <a href="?sort=phone&dir={{ $sort==='phone' ? $nextDir : 'asc' }}&q={{ request('q') }}"
-                           class="flex items-center gap-1">
-                            Phone
-                            @if($sort==='phone') {{ $dir==='asc'?'↑':'↓' }} @endif
-                        </a>
-                    </th>
+                <tbody class="divide-y dark:divide-slate-700">
 
-                    <th class="px-4 py-3 text-left">Address</th>
-                    <th class="px-4 py-3 text-center">Status</th>
-                    <th class="px-4 py-3 text-center">Actions</th>
-                </tr>
-            </thead>
+                    @forelse($customers as $customer)
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800">
 
-            <tbody class="divide-y">
-                @forelse($customers as $c)
-                <tr class="hover:bg-slate-50">
-                    <td class="px-4 py-3 text-gray-500">#{{ $c->id }}</td>
-                    <td class="px-4 py-3 font-medium">{{ $c->name }}</td>
-                    <td class="px-4 py-3">{{ $c->phone }}</td>
-                    <td class="px-4 py-3">{{ $c->address ?? '-' }}</td>
-                    <td class="px-4 py-3 text-center">
-                        <span class="px-2 py-1 text-xs rounded
-                            {{ $c->status==='active'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-red-100 text-red-700' }}">
-                            {{ ucfirst($c->status) }}
-                        </span>
-                    </td>
+                        <td class="px-4 py-3 text-slate-500">
+                            #{{ $customer->id }}
+                        </td>
 
-                    <td class="px-4 py-3 text-center space-x-2">
-                        <a href="{{ route('admin.customers.show',$c) }}"
-                           class="text-blue-600 hover:text-blue-800">👁</a>
+                        <td class="px-4 py-3 font-medium">
+                            {{ $customer->name }}
+                        </td>
 
-                        <button
-                            type="button"
-                            @click="
-                                editCustomer = {
-                                    id: {{ $c->id }},
-                                    name: '{{ $c->name }}',
-                                    phone: '{{ $c->phone }}',
-                                    address: '{{ $c->address }}',
-                                    status: '{{ $c->status }}'
-                                };
-                                showEdit = true;
-                            "
-                            class="text-orange-500 hover:text-orange-700">✏️</button>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="py-10 text-center text-gray-400">
-                        No customers found
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
+                        <td class="px-4 py-3">
+                            {{ $customer->phone }}
+                        </td>
+
+                        <td class="px-4 py-3">
+                            {{ $customer->address ?? '-' }}
+                        </td>
+
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 rounded text-xs
+                                {{ $customer->status=='active'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-red-100 text-red-700' }}">
+                                {{ ucfirst($customer->status) }}
+                            </span>
+                        </td>
+
+                        {{-- ✅ ACTION ICONS (FIXED) --}}
+                        <td class="px-4 py-3 text-center space-x-3">
+
+                            {{-- VIEW --}}
+                            <a href="{{ route('admin.customers.show',$customer) }}"
+                               class="text-blue-600"
+                               title="View">
+                                👁
+                            </a>
+
+                            {{-- EDIT --}}
+                            <button
+                                @click="
+                                    showEdit=true;
+                                    editCustomer = {{ Js::from($customer) }}
+                                "
+                                class="text-orange-500"
+                                title="Edit">
+                                ✏️
+                            </button>
+
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="6" class="text-center py-10 text-slate-400">
+                            No customers found
+                        </td>
+                    </tr>
+                    @endforelse
+
+                </tbody>
+            </table>
+
         </div>
-
-        {{-- PAGINATION ONLY (TEXT REMOVED ✅) --}}
-        <div class="flex justify-end px-4 py-3 border-t">
-            {{ $customers->links() }}
-        </div>
-
     </div>
 
-    {{-- MODALS --}}
+    {{-- ✅ PAGINATION (PAGE NUMBERS) --}}
+    <div class="mt-4">
+        {{ $customers->links() }}
+    </div>
+
+    {{-- CREATE MODAL --}}
     @include('admin.customers.modal-create')
+
+    {{-- EDIT MODAL --}}
     @include('admin.customers.modal-edit')
 
-</div>
 </div>
 
 </x-admin-layout>
