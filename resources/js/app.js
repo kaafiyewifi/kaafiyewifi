@@ -1,6 +1,36 @@
 import './bootstrap'
 import Alpine from 'alpinejs'
 
+import TomSelect from "tom-select"
+import "tom-select/dist/css/tom-select.css"
+
+// ============================
+// ===== TomSelect (Locations Multi) =====
+// ============================
+function initLocationsSelect() {
+  const el = document.querySelector("#locations")
+  if (!el) return
+
+  // prevent duplicate init
+  if (el.tomselect) return
+
+  new TomSelect(el, {
+    plugins: ["remove_button"],
+    placeholder: "Select location(s)",
+    allowEmptyOption: true,
+    maxItems: null,
+    closeAfterSelect: false,
+    hideSelected: true,
+  })
+}
+
+document.addEventListener("DOMContentLoaded", initLocationsSelect)
+// also run immediately (Vite/SPA-like cases)
+initLocationsSelect()
+
+// ============================
+// ===== Alpine =====
+// ============================
 window.Alpine = Alpine
 
 Alpine.store('sidebar', {

@@ -46,6 +46,8 @@
 
     {{-- Nav --}}
     <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-1 text-sm">
+
+        {{-- Admin Home --}}
         <a href="{{ route('admin.home') }}"
            class="{{ $wrap(request()->routeIs('admin.home')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -55,34 +57,35 @@
             <span class="{{ $hideOnCollapsed }}">Admin Home</span>
         </a>
 
-        @role('super_admin')
-        <a href="{{ route('sa.users.index') }}"
-           class="{{ $wrap(request()->routeIs('sa.users.*')) }} {{ $centerOnCollapsed }}">
-            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-            <span class="{{ $hideOnCollapsed }}">Users</span>
-        </a>
-        @endrole
+        {{-- Users (permission based) --}}
+        @can('manage users')
+            <a href="{{ route('admin.users.index') }}"
+               class="{{ $wrap(request()->routeIs('admin.users.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">Users</span>
+            </a>
+        @endcan
 
-        <a href="{{ route('admin.locations.index') }}"
-           class="{{ $wrap(request()->routeIs('admin.locations.*')) }} {{ $centerOnCollapsed }}">
-            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>
-            </svg>
-            <span class="{{ $hideOnCollapsed }}">Locations</span>
-        </a>
+        {{-- Locations (optional permission) --}}
+        @can('manage locations')
+            <a href="{{ route('admin.locations.index') }}"
+               class="{{ $wrap(request()->routeIs('admin.locations.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z"/>
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">Locations</span>
+            </a>
+        @endcan
 
+        {{-- Hotspots (placeholder) --}}
         <a href="{{ route('admin.hotspots.index') }}"
            class="{{ $wrap(request()->routeIs('admin.hotspots.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -96,6 +99,7 @@
             <span class="{{ $hideOnCollapsed }}">Hotspots</span>
         </a>
 
+        {{-- Reports (placeholder) --}}
         <a href="{{ route('admin.reports.index') }}"
            class="{{ $wrap(request()->routeIs('admin.reports.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -107,6 +111,7 @@
             <span class="{{ $hideOnCollapsed }}">Reports</span>
         </a>
 
+        {{-- Audit (placeholder) --}}
         <a href="{{ route('admin.audit.index') }}"
            class="{{ $wrap(request()->routeIs('admin.audit.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -115,6 +120,7 @@
             </svg>
             <span class="{{ $hideOnCollapsed }}">Audit Logs</span>
         </a>
+
     </nav>
 
     <div class="sticky bottom-0 z-10 px-3 py-3 border-t border-gray-200 dark:border-gray-800

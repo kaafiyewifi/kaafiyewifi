@@ -1,12 +1,32 @@
 @extends('layouts.admin')
-@section('title','Create User')
+@section('page_title','Create User')
 
 @section('content')
-<h1 class="text-xl font-semibold mb-6">Create User</h1>
+<div class="min-h-[calc(100vh-160px)] px-4 py-8">
 
-<form method="POST" action="{{ route('admin.users.store') }}" class="space-y-4 max-w-xl">
-  @csrf
-  @include('admin.users.partials.form', ['user' => null, 'currentRole' => null, 'selectedLocations' => []])
-  <button class="px-4 py-2 rounded bg-gray-900 text-white">Save</button>
-</form>
+    {{-- Back (outside card, top-right) --}}
+    <div class="max-w-3xl mx-auto mb-4 flex justify-end">
+        <a href="{{ route('admin.users.index') }}"
+           class="rounded-xl px-4 py-2 text-sm font-semibold
+                  border border-gray-200 dark:border-gray-800
+                  bg-white dark:bg-gray-950 hover:bg-gray-50 dark:hover:bg-gray-900">
+            ← Back
+        </a>
+    </div>
+
+    <div class="max-w-3xl mx-auto bg-white dark:bg-gray-950
+                border border-gray-200 dark:border-gray-800
+                rounded-2xl p-6 sm:p-8 shadow-sm">
+
+        <h2 class="text-2xl font-bold mb-1">Create User</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            Add admin or operator (email or phone login).
+        </p>
+
+        <form method="POST" action="{{ route('admin.users.store') }}">
+            @csrf
+            @include('admin.users.partials.form')
+        </form>
+    </div>
+</div>
 @endsection

@@ -54,25 +54,28 @@
                     <form method="POST" action="{{ route('login') }}" class="mt-7 space-y-6">
                         @csrf
 
-                        {{-- Email --}}
+                        {{-- Login (Email OR Phone) --}}
                         <div>
-                            <label for="email" class="block text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                Email Address
+                            <label for="login" class="block text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                Email or Phone
                             </label>
+
                             <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                value="{{ old('email') }}"
+                                id="login"
+                                name="login"
+                                type="text"
+                                value="{{ old('login') }}"
                                 required
                                 autofocus
-                                placeholder="your@email.com"
+                                placeholder="61XXXXXXX"
                                 class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm
                                        text-gray-900 placeholder:text-gray-400
-                                       focus:border-[#ff4b2b] focus:ring-2 focus:ring-[#ff4b2b]/30
+                                       focus:border-[#ff4b2b] focus:ring-2 focus:ring-[#ff4b2b]/30 focus:outline-none
                                        dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
                             />
-                            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+
+                            {{-- IMPORTANT: show error for "login" --}}
+                            <x-input-error :messages="$errors->get('login')" class="mt-2" />
                         </div>
 
                         {{-- Password --}}
@@ -90,7 +93,7 @@
                                     placeholder="Enter your password"
                                     class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 pr-12 text-sm
                                            text-gray-900 placeholder:text-gray-400
-                                           focus:border-[#ff4b2b] focus:ring-2 focus:ring-[#ff4b2b]/30
+                                           focus:border-[#ff4b2b] focus:ring-2 focus:ring-[#ff4b2b]/30 focus:outline-none
                                            dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
                                 />
 
@@ -130,7 +133,7 @@
                             <x-input-error :messages="$errors->get('password')" class="mt-2" />
                         </div>
 
-                        {{-- Remember + Register --}}
+                        {{-- Remember --}}
                         <div class="flex items-center justify-between">
                             <label class="inline-flex items-center gap-2">
                                 <input type="checkbox"
@@ -140,9 +143,10 @@
                                 <span class="text-sm text-gray-700 dark:text-gray-300">Remember me</span>
                             </label>
 
-                            <a href="{{ route('register') }}"
-                               class="text-sm font-semibold text-[#ff4b2b] hover:opacity-90">
-                            </a>
+                            {{-- Optional link (haddii aad rabto) --}}
+                            {{-- <a href="{{ route('password.request') }}" class="text-sm font-semibold text-[#ff4b2b] hover:opacity-90">
+                                Forgot password?
+                            </a> --}}
                         </div>
 
                         {{-- Button --}}

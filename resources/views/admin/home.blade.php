@@ -34,11 +34,12 @@
                     Hotspots
                 </a>
 
-                @role('super_admin')
-                <a href="{{ route('sa.users.index') }}" class="btn-outline">
-                    Manage Users
-                </a>
-                @endrole
+                {{-- ✅ FIX: use admin.users.index --}}
+                @can('manage users')
+                    <a href="{{ route('admin.users.index') }}" class="btn-outline">
+                        Manage Users
+                    </a>
+                @endcan
             </div>
 
             {{-- Performance placeholder --}}

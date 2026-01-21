@@ -9,8 +9,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            SuperAdminSeeder::class,
-            LocationSeeder::class, // haddii aad isticmaaleyso
+            RolesAndPermissionsSeeder::class,
+            AdminSeeder::class,   // ✅ TAN AYAAN MAQNAA
         ]);
     }
 }
