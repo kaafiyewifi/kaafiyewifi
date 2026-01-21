@@ -1,138 +1,65 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\DashboardController;
 
-use App\Http\Controllers\Admin\{
-    CustomerController,
-    LocationController,
-    RouterController,
-    HotspotController,
-    SubscriptionPlanController,
-    CustomerSubscriptionController,
-    HotspotWizardController,
-    RouterStatusController
-};
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Admin\LocationController;
 
-/*
-|--------------------------------------------------------------------------
-| Redirect Root
-|--------------------------------------------------------------------------
-*/
-Route::get('/', fn () => redirect()->route('dashboard'));
-
-/*
-|--------------------------------------------------------------------------
-| Auth
-|--------------------------------------------------------------------------
-*/
-Route::middleware('guest')->group(function () {
-    Route::get('/login', [AuthenticatedSessionController::class,'create'])->name('login');
-    Route::post('/login', [AuthenticatedSessionController::class,'store']);
+Route::get('/', function () {
+    return redirect()->route('dashboard');
 });
 
-Route::post('/logout', [AuthenticatedSessionController::class,'destroy'])
-    ->middleware('auth')
-    ->name('logout');
+Route::middleware(['auth'])->group(function () {
 
-/*
-|--------------------------------------------------------------------------
-| Authenticated Area
-|--------------------------------------------------------------------------
-*/
-Route::middleware('auth')->group(function () {
+    /**
+     * Dashboard (Breeze default)
+     * Redirect to admin.home
+     */
+    Route::get('/dashboard', function () {
+        return redirect()->route('admin.home');
+    })->name('dashboard');
 
-    Route::get('/dashboard', [DashboardController::class,'index'])
-        ->name('dashboard');
+    /**
+     * Breeze Profile routes
+     */
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::prefix('admin')->name('admin.')->group(function () {
+    /**
+     * Admin area (super_admin, admin, agent)
+     */
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware('role:super_admin,admin,agent')
+        ->group(function () {
 
-        /* ================= CORE ================= */
-        Route::resource('customers', CustomerController::class);
-        Route::resource('locations', LocationController::class);
-        Route::resource('routers', RouterController::class);
+            // ✅ Admin Home (Dashboard)
+            Route::get('/home', [DashboardController::class, 'index'])->name('home');
 
-        /* ================= HOTSPOTS ================= */
-        Route::resource('hotspots', HotspotController::class)
-            ->only(['index','show','destroy']);
+            // ✅ Phase 3: Locations (Full CRUD + Profile page)
+            Route::resource('locations', LocationController::class);
 
-        /* ================= SUBSCRIPTIONS ================= */
-        Route::resource('subscription-plans', SubscriptionPlanController::class);
-
-        /* ================= ROUTER USERS ================= */
-        Route::get(
-            'router/online-users',
-            [RouterController::class,'onlineUsers']
-        )->name('router.online');
-
-        /* ================= PLAN TOGGLE ================= */
-        Route::post(
-            'subscription-plans/{subscriptionPlan}/toggle',
-            [SubscriptionPlanController::class,'toggleStatus']
-        )->name('subscription-plans.toggle');
-
-        /* ================= CUSTOMER SUB ================= */
-        Route::get(
-            'customers/{customer}/subscribe',
-            [CustomerSubscriptionController::class,'create']
-        )->name('customers.subscribe');
-
-        Route::post(
-            'customers/{customer}/subscribe',
-            [CustomerSubscriptionController::class,'store']
-        )->name('customers.subscribe.store');
-
-        Route::prefix('subscriptions')->name('subs.')->group(function () {
-            Route::post('{sub}/extend', [CustomerSubscriptionController::class,'extend'])->name('extend');
-            Route::post('{sub}/pause',  [CustomerSubscriptionController::class,'pause'])->name('pause');
-            Route::post('{sub}/resume', [CustomerSubscriptionController::class,'resume'])->name('resume');
-            Route::post('{sub}/cancel', [CustomerSubscriptionController::class,'cancel'])->name('cancel');
+            // ===== UI PLACEHOLDERS (Phase 4/5/6/7/9) =====
+            Route::view('/hotspots', 'admin/hotspots/index')->name('hotspots.index');
+            Route::view('/reports', 'admin/reports/index')->name('reports.index');
+            Route::view('/audit', 'admin/audit/index')->name('audit.index');
         });
 
-        /* ======================================================
-         | HOTSPOT WIZARD FLOW + AUTO PUSH + VPN STATUS
-         ======================================================*/
-        Route::prefix('locations/{location}/hotspots')
-            ->name('hotspots.')
-            ->group(function () {
+    /**
+     * Super Admin only
+     */
+    Route::prefix('sa')
+        ->name('sa.')
+        ->middleware('role:super_admin')
+        ->group(function () {
 
-                Route::get('add', [HotspotWizardController::class,'step1'])
-                    ->name('wizard.step1');
-
-                Route::post('add', [HotspotWizardController::class,'storeStep1'])
-                    ->name('wizard.store.step1');
-
-                Route::get('{hotspot}/router', [HotspotWizardController::class,'step2'])
-                    ->name('wizard.step2');
-
-                Route::post('{hotspot}/router', [HotspotWizardController::class,'storeStep2'])
-                    ->name('wizard.store.step2');
-
-                Route::get('{hotspot}/done', [HotspotWizardController::class,'done'])
-                    ->name('wizard.done');
-
-                // ✅ AUTO PUSH SCRIPT
-                Route::post('{hotspot}/auto-push', [HotspotWizardController::class,'autoPush'])
-                    ->name('autoPush');
-
-                // ✅ VPN STATUS CHECKER
-                Route::get('{hotspot}/vpn-status', [HotspotWizardController::class,'vpnStatus'])
-                    ->name('vpnStatus');
-            });
-
-        /* ================= ROUTER TEST ================= */
-        Route::get(
-            'hotspots/{hotspot}/test-router',
-            [HotspotController::class,'testRouter']
-        )->name('hotspots.testRouter');
-
-        /* ================= ROUTER STATUS ================= */
-        Route::get(
-            'hotspots/{hotspot}/router-status',
-            [RouterStatusController::class,'check']
-        )->name('hotspots.routerStatus');
-
-    });
-
+            Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
+            Route::post('/users/{user}/role', [UserManagementController::class, 'setRole'])->name('users.setRole');
+        });
 });
+
+// Breeze auth routes (login/logout/register/etc.)
+require __DIR__ . '/auth.php';

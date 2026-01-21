@@ -6,10 +6,10 @@
 Online Hotspot Users
 </h1>
 
-<div class="bg-white dark:bg-slate-800 rounded-xl shadow border dark:border-slate-700 overflow-hidden">
+<div class="bg-white rounded-xl shadow border overflow-hidden">
 
 <table class="w-full text-sm">
-<thead class="bg-slate-50 dark:bg-slate-700 text-left">
+<thead class="bg-slate-50 text-left">
 <tr>
 <th class="px-4 py-3">User</th>
 <th class="px-4 py-3">IP</th>
@@ -19,10 +19,10 @@ Online Hotspot Users
 </tr>
 </thead>
 
-<tbody class="divide-y dark:divide-slate-700">
+<tbody class="divide-y">
 
 @forelse($users as $u)
-<tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40">
+<tr class="hover:bg-slate-50">
 <td class="px-4 py-2 font-medium">{{ $u['user'] ?? '-' }}</td>
 <td class="px-4 py-2">{{ $u['address'] ?? '-' }}</td>
 <td class="px-4 py-2">{{ $u['mac-address'] ?? '-' }}</td>

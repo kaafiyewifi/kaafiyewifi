@@ -11,7 +11,7 @@
 
     {{-- HEADER --}}
     <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100">
+        <h1 class="text-2xl font-semibold text-slate-800">
             Customers
         </h1>
 
@@ -25,18 +25,18 @@
     </div>
 
     {{-- CARD --}}
-    <div class="bg-white dark:bg-slate-900 rounded-xl shadow border dark:border-slate-700">
+    <div class="bg-white rounded-xl shadow border">
 
         {{-- SEARCH --}}
-        <div class="p-4 border-b dark:border-slate-700 flex justify-end">
+        <div class="p-4 border-b flex justify-end">
             <form method="GET" class="w-full max-w-sm">
                 <input
                     name="q"
                     value="{{ request('q') }}"
                     placeholder="Search customer..."
                     class="w-full px-4 py-2 rounded-lg border
-                           bg-white dark:bg-slate-800
-                           dark:border-slate-700
+                           bg-white
+                          
                            text-sm"
                 >
             </form>
@@ -48,7 +48,7 @@
             <table class="w-full text-sm">
 
                 {{-- STICKY HEADER --}}
-                <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10">
+                <thead class="sticky top-0 bg-slate-50 z-10">
                     <tr>
                         <th class="px-4 py-3">ID</th>
                         <th class="px-4 py-3">Name</th>
@@ -59,10 +59,10 @@
                     </tr>
                 </thead>
 
-                <tbody class="divide-y dark:divide-slate-700">
+                <tbody class="divide-y">
 
                     @forelse($customers as $customer)
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <tr class="hover:bg-slate-50">
 
                         <td class="px-4 py-3 text-slate-500">
                             #{{ $customer->id }}

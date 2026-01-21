@@ -1,28 +1,17 @@
-@extends('layouts.admin')
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
 
-@section('content')
-    <div class="space-y-6">
-        <h1 class="text-2xl font-bold">Dashboard</h1>
-        
-        <!-- Dashboard stats -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold">Users</h3>
-                <p class="text-3xl font-bold mt-2">12</p>
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900">
+                    {{ __("You're logged in!") }}
+                </div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold">Today Revenue</h3>
-                <p class="text-3xl font-bold mt-2">$0.00</p>
-            </div>
-            <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold">Total Revenue</h3>
-                <p class="text-3xl font-bold mt-2">$0.00</p>
-            </div>
-                <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold">Total Revenue</h3>
-                <p class="text-3xl font-bold mt-2">$0.00</p>
-            </div>
-            
         </div>
     </div>
-@endsection
+</x-app-layout>

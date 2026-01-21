@@ -1,112 +1,46 @@
-<!DOCTYPE html>
-<html lang="en"
-x-data="{ sidebarOpen: false, dark: localStorage.getItem('theme') === 'dark' }"
-x-init="
-    document.documentElement.classList.toggle('dark', dark);
-    if (window.innerWidth >= 1024) sidebarOpen = true;
-"
-x-data="{
-    sidebarOpen: window.innerWidth >= 1024
-}"
+{{-- resources/views/layouts/admin.blade.php --}}
 
-
->
-
+<!doctype html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
 <head>
-    <meta charset="UTF-8">
-    <title>{{ $title ?? 'Dashboard' }} – Kaafiye WiFi</title>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@yield('title', 'Admin') - KaafiyeWiFi</title>
 
-    @vite(['resources/css/app.css','resources/js/app.js'])
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+<body class="h-full">
+<div class="h-screen overflow-hidden">
 
-<div class="flex min-h-screen">
+    @include('partials.admin-sidebar')
 
-    {{-- ================= SIDEBAR ================= --}}
-    <aside
-        :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-        class="fixed inset-y-0 left-0 z-40 w-64
-               bg-white dark:bg-slate-900
-               border-r dark:border-slate-700
-               transform transition-transform duration-300
-               lg:translate-x-0"
-    >
-        @include('partials.sidebar')
-    </aside>
+    <div id="appShell"
+         data-sidebar="expanded"
+         class="h-screen transition-[margin] duration-200 ease-in-out
+                lg:ml-64 lg:[data-sidebar=collapsed]:ml-20">
 
-    {{-- MOBILE OVERLAY --}}
-    <div
-        x-show="sidebarOpen && window.innerWidth < 1024"
-        @click="sidebarOpen=false"
-        class="fixed inset-0 bg-black/40 z-30 lg:hidden"
-    ></div>
+        {{-- Grid: navbar row + content row --}}
+        <div class="h-screen grid grid-rows-[64px_1fr]">
 
-    {{-- ================= MAIN ================= --}}
-    <div class="flex-1 flex flex-col lg:ml-64">
+            {{-- Navbar (no scroll) --}}
+            <div class="row-start-1 row-end-2 z-[60]
+                        bg-white dark:bg-gray-900
+                        border-b border-gray-200 dark:border-gray-800">
+                @include('partials.admin-navbar')
+            </div>
 
-        {{-- ================= NAVBAR (DESKTOP + MOBILE) ================= --}}
-        <header class="sticky top-0 z-20
-                       bg-white dark:bg-slate-900
-                       border-b dark:border-slate-700">
-
-            <div class="h-14 px-4 flex items-center justify-between">
-
-                {{-- LEFT --}}
-                <div class="flex items-center gap-3">
-                    {{-- Hamburger (mobile only) --}}
-                    <button
-                        class="lg:hidden text-2xl"
-                        @click="sidebarOpen = true"
-                    >
-                        ☰
-                    </button>
-
-                    <span class="font-semibold text-sm">
-                        {{ $title ?? 'Dashboard' }}
-                    </span>
-                </div>
-
-                {{-- RIGHT --}}
-                <div class="flex items-center gap-3">
-
-                    {{-- Dark mode --}}
-                    <button
-                        @click="dark = !dark"
-                        class="px-2 py-1 rounded border text-sm"
-                    >
-                        <span x-show="!dark">🌙</span>
-                        <span x-show="dark">☀️</span>
-                    </button>
-
-                    {{-- User --}}
-                    <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-full bg-indigo-600 text-white
-                                    flex items-center justify-center text-sm">
-                            {{ substr(auth()->user()->name,0,1) }}
-                        </div>
-                        <span class="hidden sm:block text-sm font-medium">
-                            {{ auth()->user()->name }}
-                        </span>
+            {{-- Content scroll only when needed --}}
+            <main id="main" class="row-start-2 row-end-3 overflow-y-auto relative z-0 scrollbar-soft">
+                <div class="px-4 sm:px-6 py-8">
+                    <div class="w-full max-w-6xl mx-auto">
+                        @yield('content')
                     </div>
                 </div>
+            </main>
 
-            </div>
-        </header>
-
-        {{-- ================= CONTENT ================= --}}
-  <main class="flex-1 bg-gray-100">
-    <div class="max-w-7xl mx-auto px-6 py-6">
-        @yield('content')
-    </div>
-</main>
-
-
-
+        </div>
     </div>
 </div>
-
 </body>
 </html>

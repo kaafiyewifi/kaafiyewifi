@@ -1,8 +1,8 @@
 <x-admin-layout>
 
-<div class="max-w-xl mx-auto bg-white dark:bg-slate-900 rounded-xl shadow p-6">
+<div class="max-w-xl mx-auto bg-white rounded-xl shadow p-6">
 
-    <h2 class="text-xl font-semibold mb-6 text-center text-slate-800 dark:text-slate-100">
+    <h2 class="text-xl font-semibold mb-6 text-center text-slate-800">
         Create Subscription Plan
     </h2>
 
@@ -19,7 +19,7 @@
             name="name"
             placeholder="Plan name (e.g Basic, Pro)"
             required
-            class="w-full border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+            class="w-full border rounded-lg px-3 py-2"
         >
 
         {{-- PRICE --}}
@@ -29,7 +29,7 @@
             name="price"
             placeholder="Price (USD)"
             required
-            class="w-full border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+            class="w-full border rounded-lg px-3 py-2"
         >
 
         {{-- DOWNLOAD SPEED --}}
@@ -38,12 +38,12 @@
                 type="number"
                 name="download_speed"
                 placeholder="Download speed"
-                class="border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+                class="border rounded-lg px-3 py-2"
             >
 
             <select
                 name="download_unit"
-                class="border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+                class="border rounded-lg px-3 py-2"
             >
                 <option value="Mbps">Mbps</option>
                 <option value="Kbps">Kbps</option>
@@ -56,12 +56,12 @@
                 type="number"
                 name="upload_speed"
                 placeholder="Upload speed"
-                class="border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+                class="border rounded-lg px-3 py-2"
             >
 
             <select
                 name="upload_unit"
-                class="border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+                class="border rounded-lg px-3 py-2"
             >
                 <option value="Mbps">Mbps</option>
                 <option value="Kbps">Kbps</option>
@@ -72,7 +72,7 @@
         <div class="grid grid-cols-3 gap-3">
             <select
                 name="data_type"
-                class="border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+                class="border rounded-lg px-3 py-2"
             >
                 <option value="unlimited">Unlimited</option>
                 <option value="limited">Limited</option>
@@ -82,12 +82,12 @@
                 type="number"
                 name="data_limit"
                 placeholder="Limit"
-                class="border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+                class="border rounded-lg px-3 py-2"
             >
 
             <select
                 name="data_unit"
-                class="border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+                class="border rounded-lg px-3 py-2"
             >
                 <option value="GB">GB</option>
                 <option value="MB">MB</option>
@@ -102,13 +102,13 @@
             value="1"
             min="1"
             required
-            class="w-full border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+            class="w-full border rounded-lg px-3 py-2"
         >
 
         {{-- STATUS --}}
         <select
             name="status"
-            class="w-full border rounded-lg px-3 py-2 dark:bg-slate-800 dark:border-slate-700"
+            class="w-full border rounded-lg px-3 py-2"
         >
             <option value="1">Active</option>
             <option value="0">Inactive</option>
@@ -118,7 +118,7 @@
         <div class="flex gap-3 pt-4">
             <a
                 href="{{ route('admin.subscription-plans.index') }}"
-                class="flex-1 text-center border rounded-lg py-2 dark:border-slate-700"
+                class="flex-1 text-center border rounded-lg py-2"
             >
                 Cancel
             </a>

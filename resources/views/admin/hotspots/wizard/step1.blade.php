@@ -13,9 +13,9 @@
 
 <x-admin-layout>
 
-<div class="min-h-[calc(100vh-5rem)] flex items-center justify-center bg-slate-100 dark:bg-slate-900 px-4">
+<div class="min-h-[calc(100vh-5rem)] flex items-center justify-center bg-slate-100 px-4">
 
-    <div class="bg-white dark:bg-slate-800
+    <div class="bg-white
                 w-full max-w-5xl
                 rounded-2xl shadow-lg
                 p-10
@@ -26,7 +26,7 @@
 
             <div class="flex flex-col items-center text-sm">
                 <div class="w-7 h-7 rounded-full bg-[#ff5d39] text-white flex items-center justify-center">1</div>
-                <span class="mt-2 font-medium text-slate-800 dark:text-white">Initial settings</span>
+                <span class="mt-2 font-medium text-slate-800">Initial settings</span>
             </div>
 
             <div class="flex flex-col items-center text-sm opacity-40">
@@ -52,24 +52,24 @@
 
                 {{-- TITLE --}}
                 <div class="md:col-span-2">
-                    <label class="text-sm text-slate-600 dark:text-slate-300">Title *</label>
+                    <label class="text-sm text-slate-600">Title *</label>
                     <input name="title" required
                         class="w-full mt-1 px-4 py-3 rounded-xl border
-                               border-slate-300 dark:border-slate-700
-                               bg-white dark:bg-slate-900
-                               text-slate-800 dark:text-white
+                               border-slate-300
+                               bg-white
+                               text-slate-800
                                focus:ring-2 focus:ring-[#ff5d39]"
                         placeholder="Hotspot title">
                 </div>
 
                 {{-- NAS TYPE --}}
                 <div>
-                    <label class="text-sm text-slate-600 dark:text-slate-300">NAS type</label>
+                    <label class="text-sm text-slate-600">NAS type</label>
                     <select name="nas_type"
                         class="w-full mt-1 px-4 py-3 rounded-xl border
-                               border-slate-300 dark:border-slate-700
-                               bg-white dark:bg-slate-900
-                               text-slate-800 dark:text-white">
+                               border-slate-300
+                               bg-white
+                               text-slate-800">
                         <option value="MikroTik">MikroTik</option>
                         <option value="Cambium">Cambium</option>
                         <option value="Ubiquiti">Ubiquiti</option>
@@ -78,23 +78,23 @@
 
                 {{-- PHYSICAL ADDRESS --}}
                 <div>
-                    <label class="text-sm text-slate-600 dark:text-slate-300">Physical address</label>
+                    <label class="text-sm text-slate-600">Physical address</label>
                     <input name="physical_address"
                         class="w-full mt-1 px-4 py-3 rounded-xl border
-                               border-slate-300 dark:border-slate-700
-                               bg-white dark:bg-slate-900
-                               text-slate-800 dark:text-white"
+                               border-slate-300
+                               bg-white
+                               text-slate-800"
                         placeholder="Address">
                 </div>
 
                 {{-- SSID --}}
                 <div class="md:col-span-2">
-                    <label class="text-sm text-slate-600 dark:text-slate-300">SSID *</label>
+                    <label class="text-sm text-slate-600">SSID *</label>
                     <input name="ssid" required
                         class="w-full mt-1 px-4 py-3 rounded-xl border
-                               border-slate-300 dark:border-slate-700
-                               bg-white dark:bg-slate-900
-                               text-slate-800 dark:text-white
+                               border-slate-300
+                               bg-white
+                               text-slate-800
                                focus:ring-2 focus:ring-[#ff5d39]"
                         placeholder="WiFi name">
                 </div>
@@ -106,23 +106,23 @@
 
                 <input name="download_speed" type="number"
                     class="px-4 py-3 rounded-xl border
-                           border-slate-300 dark:border-slate-700
-                           bg-white dark:bg-slate-900
-                           text-slate-800 dark:text-white"
+                           border-slate-300
+                           bg-white
+                           text-slate-800"
                     placeholder="Download">
 
                 <input name="upload_speed" type="number"
                     class="px-4 py-3 rounded-xl border
-                           border-slate-300 dark:border-slate-700
-                           bg-white dark:bg-slate-900
-                           text-slate-800 dark:text-white"
+                           border-slate-300
+                           bg-white
+                           text-slate-800"
                     placeholder="Upload">
 
                 <select name="speed_unit"
                     class="px-4 py-3 rounded-xl border
-                           border-slate-300 dark:border-slate-700
-                           bg-white dark:bg-slate-900
-                           text-slate-800 dark:text-white">
+                           border-slate-300
+                           bg-white
+                           text-slate-800">
                     <option>Mbps</option>
                     <option>Kbps</option>
                     <option>Gbps</option>

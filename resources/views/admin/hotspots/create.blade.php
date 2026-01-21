@@ -4,7 +4,7 @@
 
 <div x-data="wizard()" class="max-w-4xl mx-auto py-10">
 
-<div class="bg-white dark:bg-slate-800 rounded-xl shadow p-8">
+<div class="bg-white rounded-xl shadow p-8">
 
 <!-- STEPS -->
 <div class="flex gap-6 mb-8 text-sm">
@@ -76,7 +76,7 @@
 </div>
 
 <style>
-.input{ @apply w-full border rounded-lg px-3 py-2 dark:bg-slate-900 dark:border-slate-700 dark:text-white;}
+.input{ @apply w-full border rounded-lg px-3 py-2
 .btn{ @apply bg-blue-600 text-white px-6 py-2 rounded-lg;}
 .btn-secondary{ @apply bg-gray-200 px-6 py-2 rounded-lg;}
 </style>

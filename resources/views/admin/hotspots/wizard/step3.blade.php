@@ -1,8 +1,8 @@
 <x-admin-layout>
 
-<div class="min-h-[calc(100vh-5rem)] flex justify-center items-center bg-slate-100 dark:bg-slate-900 px-4">
+<div class="min-h-[calc(100vh-5rem)] flex justify-center items-center bg-slate-100 px-4">
 
-<div class="bg-white dark:bg-slate-800 w-full max-w-4xl rounded-2xl shadow-xl p-10 space-y-8">
+<div class="bg-white w-full max-w-4xl rounded-2xl shadow-xl p-10 space-y-8">
 
 {{-- STEP INDICATOR --}}
 <div class="flex items-center gap-6 text-sm font-medium">
@@ -31,7 +31,7 @@
 {{-- COPY BUTTON --}}
 <div>
     <button onclick="copyScript()"
-        class="px-4 py-2 rounded-lg border text-sm hover:bg-slate-100 dark:hover:bg-slate-700">
+        class="px-4 py-2 rounded-lg border text-sm hover:bg-slate-100">
         Copy script
     </button>
 </div>
@@ -40,14 +40,14 @@
 <textarea id="scriptBox"
     readonly
     class="w-full h-60 rounded-xl border p-4 font-mono text-xs
-           bg-slate-50 dark:bg-slate-900
-           text-slate-700 dark:text-white resize-none">{{ $script }}</textarea>
+           bg-slate-50
+           text-slate-700 resize-none">{{ $script }}</textarea>
 
 {{-- ACTION BUTTONS --}}
 <div class="flex justify-between items-center pt-4">
 
     <button onclick="checkRouterStatus()"
-        class="px-5 py-2 rounded-lg border text-sm hover:bg-slate-100 dark:hover:bg-slate-700">
+        class="px-5 py-2 rounded-lg border text-sm hover:bg-slate-100">
         Check status
     </button>
 

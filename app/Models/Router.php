@@ -7,27 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 class Router extends Model
 {
     protected $fillable = [
-        'location_id',
-        'name',
-        'ip_address',
-        'api_port',
-        'username',
-        'password',
-        'is_active',
+        'router_id',
+        'router_name',
+        'public_key',
+        'vpn_ip',
+        'active_users',
+        'last_seen_at',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'last_seen_at' => 'datetime',
     ];
-
-    // 🔗 Relations
-    public function location()
-    {
-        return $this->belongsTo(Location::class);
-    }
-
-    public function hotspots()
-    {
-        return $this->hasMany(Hotspot::class);
-    }
 }

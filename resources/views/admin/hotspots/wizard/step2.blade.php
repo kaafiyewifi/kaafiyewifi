@@ -13,15 +13,15 @@
 
 <x-admin-layout>
 
-<div class="min-h-[calc(100vh-5rem)] bg-slate-100 dark:bg-slate-900 flex items-center justify-center px-4">
+<div class="min-h-[calc(100vh-5rem)] bg-slate-100 flex items-center justify-center px-4">
 
-    <div class="bg-white dark:bg-slate-800
+    <div class="bg-white
                 w-full max-w-5xl
                 rounded-2xl shadow-lg
                 p-10 transition-all duration-300">
 
         {{-- STEPPER --}}
-        <div class="flex gap-10 mb-10 text-sm text-slate-500 dark:text-slate-400">
+        <div class="flex gap-10 mb-10 text-sm text-slate-500">
             <div class="flex items-center gap-2">
                 <span class="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center">✓</span>
                 Initial settings
@@ -46,14 +46,14 @@
 
             {{-- SETUP TYPE --}}
             <div>
-                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                <label class="block text-sm font-medium mb-2 text-slate-700">
                     Setup type
                 </label>
                 <select id="setupType"
                         class="w-full px-4 py-3 rounded-lg border
-                               border-slate-300 dark:border-slate-700
-                               bg-white dark:bg-slate-900
-                               text-slate-800 dark:text-white">
+                               border-slate-300
+                               bg-white
+                               text-slate-800">
                     <option value="simple">Simple</option>
                     <option value="advanced">Advanced</option>
                 </select>
@@ -61,14 +61,14 @@
 
             {{-- SIMPLE SETUP --}}
             <div id="simpleSetup">
-                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                <label class="block text-sm font-medium mb-2 text-slate-700">
                     Setup
                 </label>
                 <select
                     class="w-full px-4 py-3 rounded-lg border
-                           border-slate-300 dark:border-slate-700
-                           bg-white dark:bg-slate-900
-                           text-slate-800 dark:text-white">
+                           border-slate-300
+                           bg-white
+                           text-slate-800">
                     <option>Setup VPN (Wireguard)</option>
                     <option>Setup VPN (OpenVPN)</option>
                     <option selected>Full setup (with Wireguard)</option>
@@ -81,14 +81,14 @@
                  class="space-y-6 hidden transition-all duration-300">
 
                 <div>
-                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                    <label class="block text-sm font-medium mb-2 text-slate-700">
                         * Connection type
                     </label>
                     <select name="connection_type"
                             class="w-full px-4 py-3 rounded-lg border
-                                   border-slate-300 dark:border-slate-700
-                                   bg-white dark:bg-slate-900
-                                   text-slate-800 dark:text-white">
+                                   border-slate-300
+                                   bg-white
+                                   text-slate-800">
                         <option value="">Select</option>
                         <option value="vpn">VPN</option>
                         <option value="direct">Direct</option>
@@ -96,14 +96,14 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                    <label class="block text-sm font-medium mb-2 text-slate-700">
                         * Radius secret
                     </label>
                     <input name="radius_secret"
                            class="w-full px-4 py-3 rounded-lg border
-                                  border-slate-300 dark:border-slate-700
-                                  bg-white dark:bg-slate-900
-                                  text-slate-800 dark:text-white"
+                                  border-slate-300
+                                  bg-white
+                                  text-slate-800"
                            placeholder="Radius secret">
                 </div>
 

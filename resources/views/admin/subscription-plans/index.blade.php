@@ -17,10 +17,10 @@
     </div>
 
     {{-- CARD --}}
-    <div class="bg-white dark:bg-darkCard rounded-xl shadow border dark:border-darkBorder overflow-hidden">
+    <div class="bg-white rounded-xl shadow border overflow-hidden">
 
         <table class="w-full text-sm">
-            <thead class="bg-[#fee8de] dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+            <thead class="bg-[#fee8de] text-slate-800">
                 <tr>
                     <th class="px-4 py-3 text-left">#</th>
                     <th class="px-4 py-3 text-left">Name</th>
@@ -32,9 +32,9 @@
                 </tr>
             </thead>
 
-            <tbody class="divide-y dark:divide-darkBorder">
+            <tbody class="divide-y">
                 @forelse($plans as $i => $plan)
-                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800">
+                <tr class="hover:bg-slate-50">
 
                     <td class="px-4 py-3">
                         {{ $plans->firstItem() + $i }}

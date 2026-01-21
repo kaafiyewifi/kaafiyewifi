@@ -1,12 +1,12 @@
 <x-admin-layout>
     <x-slot name="title">Add Router</x-slot>
 
-    <h1 class="text-2xl font-semibold mb-6 text-gray-800 dark:text-gray-100">
+    <h1 class="text-2xl font-semibold mb-6 text-gray-800">
         Add Router
     </h1>
 
     <form action="{{ route('admin.routers.store') }}" method="POST"
-          class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow max-w-xl">
+          class="bg-white p-6 rounded-xl shadow max-w-xl">
         @csrf
 
         @include('admin.routers.partials.form')
@@ -16,7 +16,7 @@
                 Save
             </button>
             <a href="{{ route('admin.routers.index') }}"
-               class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
+               class="px-4 py-2 bg-gray-200 rounded-lg">
                 Cancel
             </a>
         </div>

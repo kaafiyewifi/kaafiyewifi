@@ -67,7 +67,7 @@ x-init="
 @endif
 
 
-<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+<body class="bg-slate-100 text-slate-800">
 
 <div class="flex min-h-screen">
 

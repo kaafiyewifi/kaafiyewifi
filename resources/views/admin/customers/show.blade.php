@@ -2,7 +2,7 @@
 <div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
 {{-- ================= PROFILE ================= --}}
-<div class="bg-white dark:bg-slate-900 rounded-xl shadow px-6 py-5">
+<div class="bg-white rounded-xl shadow px-6 py-5">
 
     {{-- TOP --}}
     <div class="flex items-center gap-4">
@@ -46,7 +46,7 @@
     </div>
 
     {{-- INFO --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3 mt-4 text-sm text-slate-700 dark:text-slate-300">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3 mt-4 text-sm text-slate-700">
         <p><b>ID:</b> {{ $customer->id }}</p>
         <p><b>Location:</b> {{ $customer->locations->pluck('name')->join(', ') ?: 'No location' }}</p>
         <p><b>Phone:</b> {{ $customer->phone }}</p>
@@ -69,7 +69,7 @@
 {{-- ================= TABS ================= --}}
 <div x-data="{ tab: 'subs' }">
 
-    <div class="flex gap-6 border-b dark:border-slate-700 text-sm">
+    <div class="flex gap-6 border-b text-sm">
         <button
             @click="tab='subs'"
             :class="tab==='subs'
@@ -90,9 +90,9 @@
     </div>
 
     {{-- ================= SUBSCRIPTIONS TAB ================= --}}
-    <div x-show="tab==='subs'" class="mt-6 bg-white dark:bg-slate-900 rounded-xl shadow overflow-hidden">
+    <div x-show="tab==='subs'" class="mt-6 bg-white rounded-xl shadow overflow-hidden">
 
-        <div class="flex justify-between items-center px-6 py-4 border-b dark:border-slate-700">
+        <div class="flex justify-between items-center px-6 py-4 border-b">
             <h3 class="font-semibold">Subscriptions</h3>
 
             <a href="{{ route('admin.customers.subscribe', $customer) }}"
@@ -102,7 +102,7 @@
         </div>
 
         <table class="w-full text-sm">
-            <thead class="bg-slate-100 dark:bg-slate-800">
+            <thead class="bg-slate-100">
                 <tr>
                     <th class="px-4 py-3 text-left">Plan</th>
                     <th class="px-4 py-3 text-center">Price</th>
@@ -114,10 +114,10 @@
                 </tr>
             </thead>
 
-            <tbody class="divide-y dark:divide-slate-700">
+            <tbody class="divide-y">
             @forelse($subscriptions as $sub)
                 <tr class="{{ $sub->status === 'active'
-                        ? 'bg-green-50 dark:bg-green-900/20'
+                        ? 'bg-green-50'
                         : '' }}">
 
                     <td class="px-4 py-3 font-medium">
@@ -184,7 +184,7 @@
     </div>
 
     {{-- ================= DEVICES TAB ================= --}}
-    <div x-show="tab==='devices'" class="mt-6 bg-white dark:bg-slate-900 rounded-xl shadow p-6 text-sm text-slate-500">
+    <div x-show="tab==='devices'" class="mt-6 bg-white rounded-xl shadow p-6 text-sm text-slate-500">
         Devices connected (coming soon…)
     </div>
 

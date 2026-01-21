@@ -2,7 +2,7 @@
     <x-slot name="title">Routers</x-slot>
 
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+        <h1 class="text-2xl font-semibold text-gray-800">
             Routers
         </h1>
 
@@ -13,14 +13,14 @@
     </div>
 
     @if(session('success'))
-        <div class="mb-4 p-3 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200">
+        <div class="mb-4 p-3 rounded bg-green-100 text-green-700">
             {{ session('success') }}
         </div>
     @endif
 
-    <div class="overflow-x-auto bg-white dark:bg-gray-800 rounded-xl shadow">
+    <div class="overflow-x-auto bg-white rounded-xl shadow">
         <table class="min-w-full text-sm">
-            <thead class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+            <thead class="bg-gray-100 text-gray-700">
                 <tr>
                     <th class="px-4 py-3 text-left">Name</th>
                     <th class="px-4 py-3 text-left">IP</th>
@@ -29,13 +29,13 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody class="divide-y divide-gray-200">
                 @forelse($routers as $router)
                     <tr>
-                        <td class="px-4 py-3 font-medium text-gray-800 dark:text-gray-100">
+                        <td class="px-4 py-3 font-medium text-gray-800">
                             {{ $router->name }}
                         </td>
-                        <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
+                        <td class="px-4 py-3 text-gray-600">
                             {{ $router->ip_address }}
                         </td>
                         <td class="px-4 py-3">
@@ -43,11 +43,11 @@
                         </td>
                         <td class="px-4 py-3 text-center">
                             @if($router->is_active)
-                                <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                                <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-700">
                                     Active
                                 </span>
                             @else
-                                <span class="px-2 py-1 text-xs rounded bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                                <span class="px-2 py-1 text-xs rounded bg-red-100 text-red-700">
                                     Inactive
                                 </span>
                             @endif

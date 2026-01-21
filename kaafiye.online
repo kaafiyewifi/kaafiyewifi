@@ -1,0 +1,35 @@
+# ===============================
+# Redirect non-www → www
+# ===============================
+server {
+    listen 80;
+    server_name kaafiye.online;
+
+    return 301 http://www.kaafiye.online$request_uri;
+}
+
+# ===============================
+# Main Laravel App (www)
+# ===============================
+server {
+    listen 80;
+    server_name www.kaafiye.online;
+
+    root /var/www/kaafiye_wifi/public;
+    index index.php index.html;
+
+    charset utf-8;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}

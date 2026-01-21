@@ -8,79 +8,101 @@ use Illuminate\Http\Request;
 
 class LocationController extends Controller
 {
-    /* =====================
-     * INDEX
-     * ===================*/
+    private function assertLocationAccess(Location $location): void
+    {
+        $user = auth()->user();
+
+        if ($user->hasRole('super_admin')) {
+            return;
+        }
+
+        abort_unless($user->canAccessLocation($location->id), 403);
+    }
+
     public function index()
     {
-        $locations = Location::latest()->paginate(10);
+        $user = auth()->user();
+
+        $q = Location::query();
+
+        // scoping
+        if (!$user->hasRole('super_admin')) {
+            $q->whereIn('id', $user->allowedLocationIds());
+        }
+
+        $locations = $q->latest()->paginate(15);
+
         return view('admin.locations.index', compact('locations'));
     }
 
-    /* =====================
-     * SHOW (LOCATION PROFILE) ✅
-     * ===================*/
+    public function create()
+    {
+        // Create location: allowed for super_admin (recommended)
+        // Haddii aad rabto admin inuu sameeyo location, ka saar check-kan.
+        abort_unless(auth()->user()->hasRole('super_admin'), 403);
+
+        return view('admin.locations.create');
+    }
+
+    public function store(Request $request)
+    {
+        abort_unless(auth()->user()->hasRole('super_admin'), 403);
+
+        $data = $request->validate([
+            'name'    => ['required','string','max:120'],
+            'status'  => ['required','in:active,inactive'],
+            'address' => ['nullable','string','max:200'],
+            'city'    => ['nullable','string','max:120'],
+        ]);
+
+        $location = Location::create($data); // code auto on model (kw001...)
+
+        return redirect()
+            ->route('admin.locations.show', $location)
+            ->with('success', 'Location created.');
+    }
+
     public function show(Location $location)
     {
-        // Load related hotspots
-        $location->load('hotspots');
+        $this->assertLocationAccess($location);
 
         return view('admin.locations.show', compact('location'));
     }
 
-    /* =====================
-     * STORE (AJAX)
-     * ===================*/
-    public function store(Request $request)
+    public function edit(Location $location)
     {
-        $location = Location::create(
-            $request->validate([
-                'name' => 'required|string|max:255'
-            ])
-        );
+        // edit: super_admin only (recommended)
+        abort_unless(auth()->user()->hasRole('super_admin'), 403);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Location si guul leh ayaa loo daray',
-            'location' => [
-                'id' => $location->id,
-                'name' => $location->name,
-                'created_at' => $location->created_at->format('d M Y'),
-            ]
-        ]);
+        return view('admin.locations.edit', compact('location'));
     }
 
-    /* =====================
-     * UPDATE (AJAX)
-     * ===================*/
     public function update(Request $request, Location $location)
     {
-        $location->update(
-            $request->validate([
-                'name' => 'required|string|max:255'
-            ])
-        );
+        abort_unless(auth()->user()->hasRole('super_admin'), 403);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Location waa la update gareeyay',
-            'location' => [
-                'id' => $location->id,
-                'name' => $location->name,
-            ]
+        $data = $request->validate([
+            'name'    => ['required','string','max:120'],
+            'status'  => ['required','in:active,inactive'],
+            'address' => ['nullable','string','max:200'],
+            'city'    => ['nullable','string','max:120'],
         ]);
+
+        $location->update($data);
+
+        return redirect()
+            ->route('admin.locations.show', $location)
+            ->with('success', 'Location updated.');
     }
 
-    /* =====================
-     * DESTROY
-     * ===================*/
     public function destroy(Location $location)
     {
+        abort_unless(auth()->user()->hasRole('super_admin'), 403);
+
         $location->delete();
 
-        return back()->with('toast', [
-            'type' => 'success',
-            'message' => 'Location waa la tirtiray'
-        ]);
+        return redirect()
+            ->route('admin.locations.index')
+            ->with('success', 'Location deleted.');
     }
 }
