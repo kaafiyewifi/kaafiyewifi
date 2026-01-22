@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\DB;
 class Location extends Model
 {
     protected $fillable = [
-        'name', 'status', 'address', 'city',
+        'name',
+        'status',
+        'address',
+        'city',
         // code is auto
     ];
 
@@ -37,5 +40,20 @@ class Location extends Model
                 $location->code = 'kw' . str_pad((string) $nextNumber, 3, '0', STR_PAD_LEFT);
             });
         });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Location → Routers
+     * One location can have many MikroTik routers
+     */
+    public function routers()
+    {
+        return $this->hasMany(\App\Models\Router::class);
     }
 }

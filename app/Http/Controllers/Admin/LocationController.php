@@ -66,6 +66,10 @@ class LocationController extends Controller
     {
         $this->assertLocationAccess($location);
 
+        // ✅ Added: load routers for the Location profile view (no other logic changed)
+        $location->load(['routers' => fn($q) => $q->latest()]);
+        $location->loadCount('routers');
+
         return view('admin.locations.show', compact('location'));
     }
 

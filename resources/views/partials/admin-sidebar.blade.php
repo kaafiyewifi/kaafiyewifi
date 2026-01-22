@@ -57,6 +57,18 @@
             <span class="{{ $hideOnCollapsed }}">Admin Home</span>
         </a>
 
+        {{-- ✅ Routers (SUPER ADMIN ONLY) --}}
+        @role('super_admin')
+            <a href="{{ route('admin.routers.index') }}"
+               class="{{ $wrap(request()->routeIs('admin.routers.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M4 6h16v4H4V6Zm0 8h16v4H4v-4Zm3-6h.01M7 16h.01M17 8h.01M17 16h.01"/>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">Routers</span>
+            </a>
+        @endrole
+
         {{-- Users (permission based) --}}
         @can('manage users')
             <a href="{{ route('admin.users.index') }}"
@@ -71,19 +83,17 @@
             </a>
         @endcan
 
-        {{-- Locations (optional permission) --}}
-        @can('manage locations')
-            <a href="{{ route('admin.locations.index') }}"
-               class="{{ $wrap(request()->routeIs('admin.locations.*')) }} {{ $centerOnCollapsed }}">
-                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                          d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z"/>
-                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                          d="M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>
-                </svg>
-                <span class="{{ $hideOnCollapsed }}">Locations</span>
-            </a>
-        @endcan
+        {{-- Locations --}}
+        <a href="{{ route('admin.locations.index') }}"
+           class="{{ $wrap(request()->routeIs('admin.locations.*')) }} {{ $centerOnCollapsed }}">
+            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      d="M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>
+            </svg>
+            <span class="{{ $hideOnCollapsed }}">Locations</span>
+        </a>
 
         {{-- Hotspots (placeholder) --}}
         <a href="{{ route('admin.hotspots.index') }}"

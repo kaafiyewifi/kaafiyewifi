@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Router Server IP (MikroTik API Access)
+    |--------------------------------------------------------------------------
+    |
+    | This IP address is allowed to access MikroTik RouterOS API.
+    | Used during router provisioning to create firewall rules.
+    |
+    */
+
+    'router_server_ip' => env('ROUTER_SERVER_IP', '127.0.0.1'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
