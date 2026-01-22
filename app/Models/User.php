@@ -2,22 +2,23 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Auth\Passwords\CanResetPassword;
 
 class User extends Authenticatable
 {
-    use Notifiable, HasRoles;
+    use HasFactory, Notifiable, HasRoles, CanResetPassword;
 
-   protected $fillable = [
-    'name',
-    'email',
-    'phone',
-    'password',
-    'status',
-];
-
+    protected $fillable = [
+        'name',
+        'email',
+        'phone',
+        'password',
+        'status',
+    ];
 
     protected $hidden = [
         'password',
@@ -26,31 +27,23 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed', // haddii Laravel 11+; haddii kale ka saar
+        'password' => 'hashed', // Laravel 11+
     ];
 
     public function locations()
     {
-        return $this->belongsToMany(\App\Models\Location::class)->withTimestamps();
+        return $this->belongsToMany(Location::class)->withTimestamps();
     }
 
-    /**
-     * Returns a Collection of location IDs user is allowed to access.
-     * Super Admin => all location IDs
-     * Others => only assigned location IDs
-     */
     public function allowedLocationIds()
     {
         if ($this->hasRole('super_admin')) {
-            return \App\Models\Location::query()->pluck('id');
+            return Location::query()->pluck('id');
         }
 
         return $this->locations()->pluck('locations.id');
     }
 
-    /**
-     * Quick boolean check.
-     */
     public function canAccessLocation(int $locationId): bool
     {
         if ($this->hasRole('super_admin')) return true;

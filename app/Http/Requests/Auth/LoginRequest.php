@@ -26,12 +26,11 @@ class LoginRequest extends FormRequest
 
     protected function normalizePhone(string $value): string
     {
-        // keep digits only
         $digits = preg_replace('/\D+/', '', $value) ?? '';
 
-        // If user typed 25261xxxxxxx => convert to 61xxxxxxx
+        // 25261xxxxxxx -> 61xxxxxxx
         if (Str::startsWith($digits, '25261')) {
-            $digits = Str::replaceFirst('252', '', $digits); // 25261 -> 61
+            $digits = Str::replaceFirst('252', '', $digits);
         }
 
         return $digits;
@@ -47,18 +46,27 @@ class LoginRequest extends FormRequest
         $isEmail = filter_var($login, FILTER_VALIDATE_EMAIL) !== false;
 
         if ($isEmail) {
-            $credentials = ['email' => $login, 'password' => $password];
+            // ✅ enforce active status for email login too
+            $credentials = [
+                'email' => $login,
+                'password' => $password,
+                'status' => 'active',
+            ];
         } else {
             $phone = $this->normalizePhone($login);
 
-            // ✅ Enforce your format: 61XXXXXXXX  (61 + 7 digits)
-            if (!preg_match('/^61\d{7}$/', $phone)) {
+            // ✅ Accept 61 + 7 OR 8 digits (tweak if needed)
+            if (!preg_match('/^61\d{7,8}$/', $phone)) {
                 throw ValidationException::withMessages([
-                    'login' => 'Phone must be like 61XXXXXXXX (example: 6151234567).',
+                    'login' => 'Phone must be like 61XXXXXXX or 61XXXXXXXX (example: 615123456 or 6151234567).',
                 ]);
             }
 
-            $credentials = ['phone' => $phone, 'password' => $password];
+            $credentials = [
+                'phone' => $phone,
+                'password' => $password,
+                'status' => 'active',
+            ];
         }
 
         if (!Auth::attempt($credentials, $this->boolean('remember'))) {

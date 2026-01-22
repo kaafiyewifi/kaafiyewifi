@@ -3,141 +3,138 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCustomerRequest;
 use App\Models\Customer;
 use App\Models\Location;
-use App\Models\SubscriptionPlan;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
-    /* ========================
-     * INDEX
-     * ======================*/
+    public function __construct()
+    {
+        // Haddii route-ka aad ka saartay middleware-ka, halkan geli:
+        // $this->middleware('permission:manage customers');
+    }
+
+    /**
+     * List customers (filtered by allowed locations + filters/search).
+     */
     public function index(Request $request)
     {
-        $query = Customer::query();
+        $allowedIds = $request->user()->allowedLocationIds()->toArray();
 
-        if ($request->filled('q')) {
-            $q = $request->q;
-            $query->where(function ($sub) use ($q) {
-                $sub->where('name', 'like', "%{$q}%")
-                    ->orWhere('phone', 'like', "%{$q}%")
-                    ->orWhere('id', $q);
-            });
-        }
+        // locations dropdown (only allowed)
+        $locations = Location::query()
+            ->whereIn('id', $allowedIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
-        $customers = $query
-            ->orderBy('id', 'desc')
-            ->paginate(10)
-            ->withQueryString();
+        $q = trim((string) $request->get('q'));
+        $status = $request->get('status');          // active|inactive|null
+        $locationId = $request->get('location_id'); // id|null
 
-        return view('admin.customers.index', [
-            'customers' => $customers,
-            'locations' => Location::orderBy('name')->get(),
-        ]);
+        $customers = Customer::query()
+            ->whereIn('location_id', $allowedIds)
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($qq) use ($q) {
+                    $qq->where('full_name', 'like', "%{$q}%")
+                       ->orWhere('username', 'like', "%{$q}%")
+                       ->orWhere('phone', 'like', "%{$q}%");
+                });
+            })
+            ->when($locationId, function ($query) use ($locationId, $allowedIds) {
+                // extra safety: locationId must be in allowed
+                if (in_array((int) $locationId, $allowedIds, true)) {
+                    $query->where('location_id', (int) $locationId);
+                }
+            })
+            ->when($status, function ($query) use ($status) {
+                if ($status === 'active') {
+                    $query->where('is_active', true);
+                } elseif ($status === 'inactive') {
+                    $query->where('is_active', false);
+                }
+            })
+            ->latest()
+            ->paginate(20);
+
+        return view('admin.customers.index', compact('customers', 'locations'));
     }
 
-    /* ========================
-     * STORE
-     * ======================*/
-    public function store(Request $request)
+    public function create(Request $request)
     {
-        $data = $request->validate([
-            'name'        => 'required|string|max:255',
-            'phone'       => 'required|string|max:50|unique:customers,phone',
-            'address'     => 'nullable|string|max:255',
-            'location_id' => 'nullable|array',
-            'location_id.*' => 'exists:locations,id',
-        ]);
+        $allowedIds = $request->user()->allowedLocationIds()->toArray();
 
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['phone'].'@customer.local',
-            'password' => Hash::make('123456'),
-        ]);
+        $locations = Location::query()
+            ->whereIn('id', $allowedIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
-        $customer = Customer::create([
-            'user_id' => $user->id,
-            'name'    => $data['name'],
-            'phone'   => $data['phone'],
-            'address' => $data['address'] ?? null,
-            'status'  => 'active',
-        ]);
-
-        if (!empty($data['location_id'])) {
-            $customer->locations()->sync($data['location_id']);
-        }
-
-        return redirect()
-            ->route('admin.customers.index')
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Customer waa la diiwaan geliyay',
-            ]);
+        return view('admin.customers.create', compact('locations'));
     }
 
-    /* ========================
-     * SHOW  ✅ SINGLE METHOD
-     * ======================*/
-    public function show(Customer $customer)
+   public function store(StoreCustomerRequest $request)
+{
+    $data = $request->validated();
+
+    // username & password -> model booted() auto
+    unset($data['username'], $data['password']);
+
+    // ✅ default active haddii uusan imaan
+    $data['is_active'] = $request->boolean('is_active', true);
+
+    Customer::create($data);
+
+    return redirect()
+        ->route('admin.customers.index')
+        ->with('success', 'Customer created successfully. Default password is 123456.');
+}
+
+    public function edit(Request $request, Customer $customer)
     {
-        $customer->load(['locations', 'subscriptions.plan']);
+        abort_unless($request->user()->canAccessLocation((int) $customer->location_id), 403);
 
-        $subscriptions = $customer->subscriptions()
-            ->orderByRaw("
-                CASE status
-                    WHEN 'active' THEN 1
-                    WHEN 'paused' THEN 2
-                    WHEN 'expired' THEN 3
-                    WHEN 'cancelled' THEN 4
-                    ELSE 5
-                END
-            ")
-            ->orderByDesc('created_at')
-            ->get();
+        $allowedIds = $request->user()->allowedLocationIds()->toArray();
 
-        return view('admin.customers.show', [
-            'customer'      => $customer,
-            'subscriptions' => $subscriptions,
-            'plans'         => SubscriptionPlan::where('status', true)->get(),
-        ]);
+        $locations = Location::query()
+            ->whereIn('id', $allowedIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('admin.customers.edit', compact('customer', 'locations'));
     }
 
-    /* ========================
-     * UPDATE
-     * ======================*/
     public function update(Request $request, Customer $customer)
     {
+        abort_unless($request->user()->canAccessLocation((int) $customer->location_id), 403);
+
+        $allowedIds = $request->user()->allowedLocationIds()->toArray();
+
         $data = $request->validate([
-            'name'        => 'required|string|max:255',
-            'phone'       => [
-                'required','string','max:50',
-                Rule::unique('customers','phone')->ignore($customer->id),
-            ],
-            'address'     => 'nullable|string|max:255',
-            'status'      => 'required|in:active,inactive',
-            'location_id' => 'nullable|array',
-            'location_id.*' => 'exists:locations,id',
+            'full_name'   => ['required', 'string', 'max:255'],
+            'phone'       => ['required', 'string', 'unique:customers,phone,' . $customer->id],
+            'location_id' => ['required', 'integer', 'in:' . implode(',', $allowedIds)],
+            'is_active'   => ['nullable', 'boolean'],
         ]);
+
+        // ✅ username = phone (always)
+        $data['username'] = $data['phone'];
 
         $customer->update($data);
 
-        if ($customer->user) {
-            $customer->user->update(['name' => $data['name']]);
-        }
+        return redirect()
+            ->route('admin.customers.index')
+            ->with('success', 'Customer updated successfully.');
+    }
 
-        if (isset($data['location_id'])) {
-            $customer->locations()->sync($data['location_id']);
-        }
+    public function destroy(Request $request, Customer $customer)
+    {
+        abort_unless($request->user()->canAccessLocation((int) $customer->location_id), 403);
+
+        $customer->delete();
 
         return redirect()
             ->route('admin.customers.index')
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Customer waa la update gareeyay',
-            ]);
+            ->with('success', 'Customer deleted successfully.');
     }
 }

@@ -4,37 +4,46 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+
 
 class Customer extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'name',
+        'full_name',
         'phone',
-        'address',
+        'username',
+        'password',
+        'location_id',
         'status',
+        'is_active',
     ];
 
-    public function locations()
+    protected static function booted()
     {
-        return $this->belongsToMany(Location::class);
-    }
+        static::creating(function ($customer) {
+            // username = phone
+            if (empty($customer->username)) {
+                $customer->username = $customer->phone;
+            }
 
-    public function payments()
-    {
-        return $this->hasMany(Payment::class);
-    }
+            // default password = 123456
+            if (empty($customer->password)) {
+                $customer->password = Hash::make('123456');
+            }
 
-    public function devices()
-    {
-        return $this->hasMany(Device::class);
-    }
+            // default active
+            if (is_null($customer->is_active)) {
+                $customer->is_active = true;
+            }
 
-    public function subscriptions()
-    {
-        // ✅ SAXITAAN
-        return $this->hasMany(Subscription::class);
+            // optional: keep status in sync
+            if (empty($customer->status)) {
+                $customer->status = 'active';
+            }
+        });
     }
 }
