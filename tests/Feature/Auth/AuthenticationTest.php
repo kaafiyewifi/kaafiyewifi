@@ -4,13 +4,14 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function login_screen_can_be_rendered(): void
     {
         $response = $this->get('/login');
@@ -18,17 +19,15 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function users_can_authenticate_using_the_login_screen(): void
     {
-        // Create active user (factory must generate valid phone: 61#######)
         $user = User::factory()->create([
             'status' => 'active',
         ]);
 
         $response = $this->post('/login', [
-            // IMPORTANT: LoginRequest expects "login", NOT "phone"
-            'login'    => $user->phone,
+            'login'    => $user->phone,   // ✅ LoginRequest expects "login"
             'password' => 'password',
         ]);
 
@@ -36,7 +35,7 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
-    /** @test */
+    #[Test]
     public function users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create([
@@ -51,7 +50,7 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    /** @test */
+    #[Test]
     public function users_can_logout(): void
     {
         $user = User::factory()->create([
