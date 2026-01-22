@@ -16,12 +16,10 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // ✅ Permissions (kuwa aad sheegtay + kuwa aasaaska ah)
         $permissions = [
-  'view dashboard',
-  'manage users',
-  'manage locations',
-  'manage customers',
-];
-
+            'view dashboard',
+            'manage users',
+            'manage locations',
+        ];
 
         foreach ($permissions as $perm) {
             Permission::firstOrCreate(['name' => $perm]);

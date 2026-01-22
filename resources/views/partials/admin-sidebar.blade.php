@@ -39,8 +39,7 @@
                        border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900"
                 aria-label="Close sidebar">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M6 6l12 12M18 6l-12 12"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6l-12 12"/>
             </svg>
         </button>
     </div>
@@ -58,21 +57,21 @@
             <span class="{{ $hideOnCollapsed }}">Admin Home</span>
         </a>
 
-        {{-- Users --}}
+        {{-- Users (permission based) --}}
         @can('manage users')
             <a href="{{ route('admin.users.index') }}"
                class="{{ $wrap(request()->routeIs('admin.users.*')) }} {{ $centerOnCollapsed }}">
                 <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
                 <span class="{{ $hideOnCollapsed }}">Users</span>
             </a>
         @endcan
 
-        {{-- Locations --}}
+        {{-- Locations (optional permission) --}}
         @can('manage locations')
             <a href="{{ route('admin.locations.index') }}"
                class="{{ $wrap(request()->routeIs('admin.locations.*')) }} {{ $centerOnCollapsed }}">
@@ -86,23 +85,7 @@
             </a>
         @endcan
 
-        {{-- ✅ Customers --}}
-        @can('manage customers')
-            <a href="{{ route('admin.customers.index') }}"
-               class="{{ $wrap(request()->routeIs('admin.customers.*')) }} {{ $centerOnCollapsed }}">
-                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                          d="M17 20h5v-2a4 4 0 0 0-4-4h-1"/>
-                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                          d="M9 20H4v-2a4 4 0 0 1 4-4h1"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <circle cx="17" cy="7" r="3"/>
-                </svg>
-                <span class="{{ $hideOnCollapsed }}">Customers</span>
-            </a>
-        @endcan
-
-        {{-- Hotspots --}}
+        {{-- Hotspots (placeholder) --}}
         <a href="{{ route('admin.hotspots.index') }}"
            class="{{ $wrap(request()->routeIs('admin.hotspots.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -116,7 +99,7 @@
             <span class="{{ $hideOnCollapsed }}">Hotspots</span>
         </a>
 
-        {{-- Reports --}}
+        {{-- Reports (placeholder) --}}
         <a href="{{ route('admin.reports.index') }}"
            class="{{ $wrap(request()->routeIs('admin.reports.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -128,14 +111,12 @@
             <span class="{{ $hideOnCollapsed }}">Reports</span>
         </a>
 
-        {{-- Audit --}}
+        {{-- Audit (placeholder) --}}
         <a href="{{ route('admin.audit.index') }}"
            class="{{ $wrap(request()->routeIs('admin.audit.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M5 4h14v16H5z"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M8 8h8M8 12h8M8 16h5"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 4h14v16H5z"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 8h8M8 12h8M8 16h5"/>
             </svg>
             <span class="{{ $hideOnCollapsed }}">Audit Logs</span>
         </a>
