@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page_title','Edit Customer')
+@section('page_title','Create Customer')
 
 @section('content')
 <div class="min-h-[calc(100vh-160px)] px-4 py-8">
@@ -18,15 +18,14 @@
                 border border-gray-200 dark:border-gray-800
                 rounded-2xl p-6 sm:p-8 shadow-sm">
 
-        <h2 class="text-2xl font-bold mb-1">Edit Customer</h2>
+        <h2 class="text-2xl font-bold mb-1">Create Customer</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Update hotspot customer details.
+            Add a new hotspot customer (username = phone, default password = 123456).
         </p>
 
-        <form method="POST" action="{{ route('admin.customers.update', $customer) }}">
+        <form method="POST" action="{{ route('admin.customers.store') }}">
             @csrf
-            @method('PUT')
-            @include('admin.customers.partials.form', ['customer' => $customer])
+            @include('admin.customers.partials.form', ['customer' => null])
         </form>
     </div>
 </div>
