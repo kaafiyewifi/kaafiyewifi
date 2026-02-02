@@ -7,6 +7,11 @@
 /storage/pail
 /vendor
 .env
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 .env.backup
 .env.production
 .phpactor.json
