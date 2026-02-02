@@ -11,14 +11,14 @@ class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
-        // Clear cached roles/permissions
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // ✅ Permissions (kuwa aad sheegtay + kuwa aasaaska ah)
+        // ✅ Permissions (ku dar manage routers)
         $permissions = [
             'view dashboard',
             'manage users',
             'manage locations',
+            'manage routers',   // ✅ NEW
         ];
 
         foreach ($permissions as $perm) {
@@ -31,17 +31,15 @@ class RolesAndPermissionsSeeder extends Seeder
         $operator   = Role::firstOrCreate(['name' => 'operator']);
 
         // ✅ Assign permissions
-        // Super Admin => all permissions
         $superAdmin->syncPermissions(Permission::all());
 
-        // Admin => manage users + view dashboard (+ manage locations optional)
         $admin->syncPermissions([
             'view dashboard',
             'manage users',
-            'manage locations', // haddii aadan rabin admin inuu locations maamulo, ka saar line-kan
+            'manage locations',
+            'manage routers',  // ✅ NEW
         ]);
 
-        // Operator => view dashboard only (ama waxaad ku dari kartaa wax kale)
         $operator->syncPermissions([
             'view dashboard',
         ]);

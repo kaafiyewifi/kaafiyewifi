@@ -1,126 +1,205 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Provision;
 
 use App\Http\Controllers\Controller;
 use App\Models\Router;
-use App\Services\Provisioning\ProvisionTokenService;
+use App\Services\Routers\ProvisionTokenService;
+use App\Services\Routers\RouterEventService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Http\Response;
 
 class ProvisionController extends Controller
 {
-    public function script(string $token, ProvisionTokenService $tokens): Response
-    {
-        $tokenRow = $tokens->findValidByRawToken($token);
+    public function __construct(
+        private readonly ProvisionTokenService $tokens
+    ) {}
 
-        if (!$tokenRow) {
-            return response("Invalid or expired token.\n", 404, ['Content-Type' => 'text/plain']);
+    /**
+     * GET /provision/{token}
+     * MikroTik fetches provisioning script here (text/plain).
+     */
+    public function script(Request $request, string $token): Response
+    {
+        [$row, $router] = $this->tokens->findValidTokenAndRouter($token);
+
+        if (!$row || !$router) {
+            return response("Invalid or expired token\n", 404, [
+                'Content-Type'  => 'text/plain; charset=UTF-8',
+                'Cache-Control' => 'no-store',
+            ]);
         }
 
-        // One-time use: mark used immediately (prevents reuse)
-        $tokens->markUsed($tokenRow);
+        $this->tokens->markServed($row);
 
-        $router = $tokenRow->router;
+        $script = $this->buildRouterOsScript($router, $token);
 
-        // Generate router API creds (system_api user)
-        $apiUser = 'system_api';
-        $apiPass = \Illuminate\Support\Str::random(16); // safe random password (no special chars)
-
-        // Store encrypted password (Laravel encrypt)
-        $router->forceFill([
-            'api_user' => $apiUser,
-            'api_pass_enc' => encrypt($apiPass),
-            'status' => 'pending',
-            'last_error' => null,
-        ])->save();
-
-        // IMPORTANT: Server IP allowed to access MikroTik API
-        // (use env so you can change later)
-        $serverIp = config('app.router_server_ip', 'YOUR_SERVER_IP');
-
-        // Callback URL (router will call back after importing)
-        $callback = route('router.callback', [], false); // relative path
-        $callbackFull = rtrim(config('app.url'), '/') . $callback;
-
-        // Build RouterOS script
-        $script = $this->buildBootstrapScript(
-            identity: $router->identity,
-            apiUser: $apiUser,
-            apiPass: $apiPass,
-            serverIp: $serverIp,
-            callbackUrl: $callbackFull
+        app(RouterEventService::class)->log(
+            $router,
+            'provision.script_served',
+            ['ip' => $request->ip(), 'ua' => (string) $request->userAgent()]
         );
 
-        return response($script, 200, ['Content-Type' => 'text/plain']);
+        return response($script . "\n", 200, [
+            'Content-Type'  => 'text/plain; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma'        => 'no-cache',
+            'Expires'       => '0',
+        ]);
     }
 
-    public function callback(Request $request): Response
+    private function buildRouterOsScript(Router $router, string $token): string
     {
-        // Minimal callback: router reports it's done
-        $identity = $request->query('identity');
-        $mgmtIp   = $request->query('ip'); // optional, can be sent by router
+        $apiPort  = (int) env('MIKROTIK_API_PORT', 8728);
+        $apiUser  = (string) env('ROUTER_API_USER', 'kaafiye');
+        $apiPass  = (string) env('ROUTER_API_PASS', 'SuperStrongPasswordHere');
+        $timezone = (string) env('ROUTER_TIMEZONE', 'Africa/Mogadishu');
 
-        if (!$identity) {
-            return response("missing identity\n", 400);
-        }
+        // ✅ Token-based callback (router will call this)
+        $callbackUrl  = url('/api/provision/callback/' . $token);
 
-        $router = Router::where('identity', $identity)->first();
-        if (!$router) {
-            return response("router not found\n", 404);
-        }
+        // ✅ Heartbeat endpoint
+        $heartbeatUrl = url('/api/routers/heartbeat');
 
-        $router->forceFill([
-            'mgmt_ip' => $mgmtIp ?: $router->mgmt_ip,
-            'status' => 'connected',
-            'last_seen_at' => now(),
-        ])->save();
+        $template = <<<'RSC'
+# ================================
+# KAAFIYE PROVISION SCRIPT (FINAL)
+# RouterOS v7 compatible (RB951 tested)
+# ================================
 
-        return response("ok\n", 200, ['Content-Type' => 'text/plain']);
+:global kfCallbackUrl "{{CALLBACK_URL}}";
+:global kfHeartbeatUrl "{{HEARTBEAT_URL}}";
+
+:global kfApiPort {{API_PORT}};
+:global kfApiUser "{{API_USER}}";
+:global kfApiPass "{{API_PASS}}";
+:global kfTz "{{TZ}}";
+
+:put "-----------------Downloading configuration-----------------";
+:put "Downloading configuration...";
+:put "-----------------Applying configuration-----------------";
+:put "Applying configuration...";
+
+:log info "Starting Kaafiye provisioning...";
+
+# --- Timezone ---
+:do {
+  /system clock set time-zone-name=$kfTz;
+  :log info "Timezone configured successfully";
+  :put "-----------------Timezone configured successfully-----------------";
+} on-error={
+  :log warning "Timezone set failed";
+  :put "-----------------Timezone set FAILED-----------------";
+}
+
+# --- Detect mgmt IP (best effort) ---
+:local kfMgmtIp "";
+
+:do {
+  :local idx [/ip address find where dynamic=yes disabled=no];
+  :if ([:len $idx] > 0) do={
+    :local a [/ip address get [:pick $idx 0] address];
+    :set kfMgmtIp [:pick $a 0 [:find $a "/"]];
+  }
+} on-error={}
+
+:if ($kfMgmtIp = "") do={
+  :foreach ifn in={"bridgeLocal";"bridge";"ether1";"ether2"} do={
+    :do {
+      :local idx2 [/ip address find where interface=$ifn disabled=no];
+      :if ([:len $idx2] > 0) do={
+        :local a2 [/ip address get [:pick $idx2 0] address];
+        :set kfMgmtIp [:pick $a2 0 [:find $a2 "/"]];
+      }
+    } on-error={}
+    :if ($kfMgmtIp != "") do={ :break; }
+  }
+}
+
+:log info ("Kaafiye mgmt_ip=" . $kfMgmtIp);
+:put ("-----------------Detected mgmt_ip=" . $kfMgmtIp . "-----------------");
+
+# =====================================================================
+# CALLBACK (GET) - RouterOS 7.21 safe
+# Uses output=file to avoid Winbox wrap issues
+# =====================================================================
+:put "-----------------Notifying server (callback)-----------------";
+
+:local kfIdent [/system identity get name];
+:local kfCbUrl ($kfCallbackUrl . "?identity=" . $kfIdent . "&mgmt_ip=" . $kfMgmtIp . "&api_port=" . $kfApiPort);
+
+:do {
+  /tool fetch mode=https check-certificate=no output=file dst-path=cb.txt url=$kfCbUrl;
+  :put "-----------------Callback sent successfully-----------------";
+  :log info "Callback sent successfully";
+} on-error={
+  :log warning "Callback failed";
+  :put "-----------------Callback FAILED-----------------";
+}
+
+:do { /file remove cb.txt; } on-error={}
+
+# =====================================================================
+# HEARTBEAT Scheduler (1m) - GET (RouterOS 7.21 safe)
+# =====================================================================
+:put "-----------------Configuring heartbeat-----------------";
+
+:do { /system scheduler remove [find name="kaafiye-heartbeat"]; } on-error={}
+
+:do {
+  /system scheduler add name="kaafiye-heartbeat" start-time=startup interval=1m on-event="\
+:local ident [/system identity get name];\
+:local cpu [/system resource get cpu-load];\
+:local freeMem [/system resource get free-memory];\
+:local totalMem [/system resource get total-memory];\
+:local freeHdd [/system resource get free-hdd-space];\
+:local totalHdd [/system resource get total-hdd-space];\
+:local uptime [/system resource get uptime];\
+:local verFull [/system resource get version];\
+:local sp [:find \$verFull \" \"];\
+:local ver \$verFull;\
+:if (\$sp != nil) do={ :set ver [:pick \$verFull 0 \$sp]; };\
+:local board [/system resource get board-name];\
+:local arch [/system resource get architecture-name];\
+:local hbUrl \$kfHeartbeatUrl;\
+:set hbUrl (\$hbUrl . \"?identity=\" . \$ident);\
+:set hbUrl (\$hbUrl . \"&cpu_load=\" . \$cpu);\
+:set hbUrl (\$hbUrl . \"&free_memory=\" . \$freeMem);\
+:set hbUrl (\$hbUrl . \"&total_memory=\" . \$totalMem);\
+:set hbUrl (\$hbUrl . \"&free_hdd_space=\" . \$freeHdd);\
+:set hbUrl (\$hbUrl . \"&total_hdd_space=\" . \$totalHdd);\
+:set hbUrl (\$hbUrl . \"&uptime=\" . \$uptime);\
+:set hbUrl (\$hbUrl . \"&version=\" . \$ver);\
+:set hbUrl (\$hbUrl . \"&board_name=\" . \$board);\
+:set hbUrl (\$hbUrl . \"&architecture_name=\" . \$arch);\
+:do { /tool fetch mode=https check-certificate=no output=file dst-path=hb.txt url=\$hbUrl; } on-error={ :log warning (\"Kaafiye heartbeat failed url=\" . \$hbUrl); };\
+:do { /file remove hb.txt; } on-error={};";
+  :log info "Heartbeat scheduler added";
+  :put "-----------------Heartbeat scheduler added-----------------";
+} on-error={
+  :log warning "Heartbeat scheduler add failed";
+  :put "-----------------Heartbeat scheduler add FAILED-----------------";
+}
+
+:put "-----------------Provisioning completed-----------------";
+:put "Provisioning completed";
+:log info "Configuration completed successfully.";
+RSC;
+
+        return strtr($template, [
+            '{{CALLBACK_URL}}'  => $this->rosEscape($callbackUrl),
+            '{{HEARTBEAT_URL}}' => $this->rosEscape($heartbeatUrl),
+            '{{API_PORT}}'      => (string) $apiPort,
+            '{{API_USER}}'      => $this->rosEscape($apiUser),
+            '{{API_PASS}}'      => $this->rosEscape($apiPass),
+            '{{TZ}}'            => $this->rosEscape($timezone),
+        ]);
     }
 
-    private function buildBootstrapScript(
-        string $identity,
-        string $apiUser,
-        string $apiPass,
-        string $serverIp,
-        string $callbackUrl
-    ): string {
-        // NOTE: RouterOS needs escaped quotes properly
-        $identityEsc = str_replace('"', '\"', $identity);
-
-        return <<<ROS
-# === Provisioning Bootstrap Script (generated by Laravel) ===
-# Router Identity: {$identityEsc}
-
-:log info "Provisioning started for identity={$identityEsc}";
-
-# Create API user (idempotent: if exists, just set password)
-:if ([:len [/user find name="{$apiUser}"]] = 0) do={
-  /user add name="{$apiUser}" group=full password="{$apiPass}";
-} else={
-  /user set [/user find name="{$apiUser}"] password="{$apiPass}";
-}
-
-# Enable API service and set port
-/ip service enable api
-/ip service set api port=8728
-
-# Firewall: allow API only from your server
-# (basic rule; you can refine chain/order later)
-:if ([:len [/ip firewall filter find chain=input protocol=tcp dst-port=8728 src-address="{$serverIp}" action=accept]] = 0) do={
-  /ip firewall filter add chain=input protocol=tcp dst-port=8728 src-address="{$serverIp}" action=accept comment="Allow API from server";
-}
-
-# (Optional) drop others to protect API (enable if you want strict)
-# /ip firewall filter add chain=input protocol=tcp dst-port=8728 action=drop comment="Drop API from others"
-
-# Notify system (callback)
-:log info "Calling back to system...";
-/tool fetch keep-result=no url="{$callbackUrl}?identity={$identityEsc}&ip=\$[/ip address get [find interface~\\"ether\\"] address]"
-
-:log info "Provisioning finished.";
-ROS;
+    private function rosEscape(string $value): string
+    {
+        return str_replace(['\\', '"'], ['\\\\', '\"'], $value);
     }
 }

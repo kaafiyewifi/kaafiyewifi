@@ -58,11 +58,10 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-    defined('Pdo\\Mysql::ATTR_SSL_CA') 
-        ? Pdo\Mysql::ATTR_SSL_CA 
-        : null => env('MYSQL_ATTR_SSL_CA'),
-]) : [],
-
+                defined('Pdo\\Mysql::ATTR_SSL_CA')
+                    ? Pdo\Mysql::ATTR_SSL_CA
+                    : null => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
         ],
 
         'mariadb' => [
@@ -80,11 +79,10 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-           'options' => extension_loaded('pdo_mysql') ? array_filter([
-    (defined('Pdo\\Mysql::ATTR_SSL_CA') ? Pdo\Mysql::ATTR_SSL_CA : null)
-        => env('MYSQL_ATTR_SSL_CA'),
-]) : [],
-
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (defined('Pdo\\Mysql::ATTR_SSL_CA') ? Pdo\Mysql::ATTR_SSL_CA : null)
+                    => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
         ],
 
         'pgsql' => [
@@ -115,6 +113,24 @@ return [
             'prefix_indexes' => true,
             // 'encrypt' => env('DB_ENCRYPT', 'yes'),
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Radius Database Connection
+        |--------------------------------------------------------------------------
+        */
+        'radius' => [
+            'driver' => 'mysql',
+            'host' => env('DB_RADIUS_HOST', '127.0.0.1'),
+            'port' => 3306,
+            'database' => env('DB_RADIUS_DATABASE'),
+            'username' => env('DB_RADIUS_USERNAME'),
+            'password' => env('DB_RADIUS_PASSWORD'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
         ],
 
     ],

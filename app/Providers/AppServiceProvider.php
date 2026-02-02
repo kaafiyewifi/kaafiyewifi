@@ -5,6 +5,8 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Schema;
+use App\Services\Routers\Contracts\RouterApi;
+use App\Services\Routers\Clients\Pear2RouterApi;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,7 +15,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(RouterApi::class, Pear2RouterApi::class);
     }
 
     /**

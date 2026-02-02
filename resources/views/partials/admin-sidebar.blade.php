@@ -1,14 +1,19 @@
 {{-- resources/views/partials/admin-sidebar.blade.php --}}
 
 @php
-    $item = fn($active) => $active
+    $isActive = fn($pattern) => request()->routeIs($pattern);
+
+    $item = fn(bool $active) => $active
         ? 'bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white'
         : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900';
 
-    $wrap = fn($active) => 'flex items-center gap-3 rounded-xl px-3 py-2 transition-colors ' . $item($active);
+    $wrap = fn(bool $active) => 'flex items-center gap-3 rounded-xl px-3 py-2 transition-colors ' . $item($active);
 
     $centerOnCollapsed = 'lg:[data-sidebar=collapsed]:justify-center';
     $hideOnCollapsed   = 'lg:block lg:[data-sidebar=collapsed]:hidden';
+
+    $user = auth()->user();
+    $isSuperAdmin = auth()->check() && $user && method_exists($user, 'hasRole') && $user->hasRole('super_admin');
 @endphp
 
 <aside id="sidebar"
@@ -49,7 +54,7 @@
 
         {{-- Admin Home --}}
         <a href="{{ route('admin.home') }}"
-           class="{{ $wrap(request()->routeIs('admin.home')) }} {{ $centerOnCollapsed }}">
+           class="{{ $wrap($isActive('admin.home')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                       d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1v-10.5Z"/>
@@ -57,22 +62,34 @@
             <span class="{{ $hideOnCollapsed }}">Admin Home</span>
         </a>
 
-        {{-- ✅ Routers (SUPER ADMIN ONLY) --}}
-        @role('super_admin')
+        {{-- MikroTik Routers (Super Admin only) --}}
+        @if($isSuperAdmin)
             <a href="{{ route('admin.routers.index') }}"
-               class="{{ $wrap(request()->routeIs('admin.routers.*')) }} {{ $centerOnCollapsed }}">
+               class="{{ $wrap($isActive('admin.routers.*')) }} {{ $centerOnCollapsed }}">
                 <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                          d="M4 6h16v4H4V6Zm0 8h16v4H4v-4Zm3-6h.01M7 16h.01M17 8h.01M17 16h.01"/>
+                    <rect x="3" y="7" width="18" height="10" rx="2" stroke-width="2"/>
+                    <path d="M7 12h.01M11 12h.01M15 12h.01" stroke-width="2" stroke-linecap="round"/>
                 </svg>
-                <span class="{{ $hideOnCollapsed }}">Routers</span>
+                <span class="{{ $hideOnCollapsed }}">MikroTik Routers</span>
             </a>
-        @endrole
+        @endif
+
+        {{-- Vouchers --}}
+        <a href="{{ route('admin.vouchers.index') }}"
+           class="{{ $wrap($isActive('admin.vouchers.*')) }} {{ $centerOnCollapsed }}">
+            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      d="M20 12a2 2 0 0 1 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 0-4V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 1 0 4Z"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      d="M9 9h.01M15 15h.01"/>
+            </svg>
+            <span class="{{ $hideOnCollapsed }}">Vouchers</span>
+        </a>
 
         {{-- Users (permission based) --}}
         @can('manage users')
             <a href="{{ route('admin.users.index') }}"
-               class="{{ $wrap(request()->routeIs('admin.users.*')) }} {{ $centerOnCollapsed }}">
+               class="{{ $wrap($isActive('admin.users.*')) }} {{ $centerOnCollapsed }}">
                 <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                     <circle cx="9" cy="7" r="4"></circle>
@@ -85,7 +102,7 @@
 
         {{-- Locations --}}
         <a href="{{ route('admin.locations.index') }}"
-           class="{{ $wrap(request()->routeIs('admin.locations.*')) }} {{ $centerOnCollapsed }}">
+           class="{{ $wrap($isActive('admin.locations.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                       d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z"/>
@@ -95,35 +112,30 @@
             <span class="{{ $hideOnCollapsed }}">Locations</span>
         </a>
 
-        {{-- Hotspots (placeholder) --}}
+        {{-- Hotspots --}}
         <a href="{{ route('admin.hotspots.index') }}"
-           class="{{ $wrap(request()->routeIs('admin.hotspots.*')) }} {{ $centerOnCollapsed }}">
+           class="{{ $wrap($isActive('admin.hotspots.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M5 12.55a11 11 0 0 1 14 0"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M8.5 16.1a6 6 0 0 1 7 0"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M12 20h.01"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12.55a11 11 0 0 1 14 0"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8.5 16.1a6 6 0 0 1 7 0"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 20h.01"/>
             </svg>
             <span class="{{ $hideOnCollapsed }}">Hotspots</span>
         </a>
 
-        {{-- Reports (placeholder) --}}
+        {{-- Reports --}}
         <a href="{{ route('admin.reports.index') }}"
-           class="{{ $wrap(request()->routeIs('admin.reports.*')) }} {{ $centerOnCollapsed }}">
+           class="{{ $wrap($isActive('admin.reports.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M8 13h8M8 9h8M8 17h5"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/>
+                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 13h8M8 9h8M8 17h5"/>
             </svg>
             <span class="{{ $hideOnCollapsed }}">Reports</span>
         </a>
 
-        {{-- Audit (placeholder) --}}
+        {{-- Audit --}}
         <a href="{{ route('admin.audit.index') }}"
-           class="{{ $wrap(request()->routeIs('admin.audit.*')) }} {{ $centerOnCollapsed }}">
+           class="{{ $wrap($isActive('admin.audit.*')) }} {{ $centerOnCollapsed }}">
             <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 4h14v16H5z"/>
                 <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 8h8M8 12h8M8 16h5"/>

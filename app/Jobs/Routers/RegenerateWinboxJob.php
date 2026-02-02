@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Jobs\Routers;
+
+use App\Models\Router;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+
+class RegenerateWinboxJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct(public int $routerId) {}
+
+    public function handle(): void
+    {
+        $router = Router::findOrFail($this->routerId);
+
+        // TODO: rebuild winbox access method (WireGuard + port forward rules)
+        // TODO: store mgmt_host / winbox info if needed
+    }
+}

@@ -3,51 +3,147 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Router extends Model
 {
-    // ✅ Explicit table (safe haddii magac kale dhacdo)
     protected $table = 'routers';
 
     protected $fillable = [
-        'name','identity','mgmt_ip','public_ip','api_port','api_user','api_pass_enc',
-        'status','last_seen_at','last_error','location_id',
-        'radius_enabled','radius_server_ip','radius_secret_enc',
+        'name',
+
+        // identity fields (support both schemas)
+        'identity',
+        'router_identity',
+
+        // device info
+        'model',
+        'router_os',
+        'public_ip',
+        'mac_address',
+
+        // statuses
+        'status',
+        'provisioning_status',
+
+        // misc
+        'tenant_id',
+        'mgmt_host',
+        'api_port',
+        'use_tls',
+        'notes',
+        'uuid',
+        'is_active',
+
+        // timestamps/heartbeat fields
+        'last_seen_at',
     ];
 
     protected $casts = [
-        'radius_enabled' => 'boolean',
+        'is_active'    => 'boolean',
+        'use_tls'      => 'boolean',
+        'api_port'     => 'integer',
         'last_seen_at' => 'datetime',
     ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | Relationships
-    |--------------------------------------------------------------------------
-    */
-
-    public function location()
+    /**
+     * ✅ Normalized identity getter (DO NOT override identity column)
+     * Use: $router->normalized_identity
+     */
+    public function getNormalizedIdentityAttribute(): ?string
     {
-        return $this->belongsTo(Location::class);
+        $identity = $this->getAttributeFromArray('identity');
+        if (is_string($identity) && trim($identity) !== '') {
+            return trim($identity);
+        }
+
+        $routerIdentity = $this->getAttributeFromArray('router_identity');
+        if (is_string($routerIdentity) && trim($routerIdentity) !== '') {
+            return trim($routerIdentity);
+        }
+
+        return null;
     }
 
-    public function service()
+    /**
+     * ✅ Set identity into correct column (identity OR router_identity)
+     * Use: $router->setNormalizedIdentity("MikroTik");
+     */
+    public function setNormalizedIdentity(string $value): void
     {
-        return $this->hasOne(RouterService::class);
+        $value = trim($value);
+
+        if ($this->routersHasColumn('identity')) {
+            $this->attributes['identity'] = $value;
+        } else {
+            $this->attributes['router_identity'] = $value;
+        }
+
+        // Optional: keep name in sync if empty
+        if ((empty($this->attributes['name']) || trim((string)$this->attributes['name']) === '') && $value !== '') {
+            $this->attributes['name'] = $value;
+        }
     }
 
-    public function logs()
+    private function routersHasColumn(string $column): bool
     {
-        return $this->hasMany(RouterLog::class);
+        try {
+            return Schema::hasColumn($this->getTable(), $column);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
-    public function provisionTokens()
+    /**
+     * ✅ Router has MANY services (hotspot + pppoe etc.)
+     */
+    public function services(): HasMany
     {
-        return $this->hasMany(RouterProvisionToken::class);
+        return $this->hasMany(RouterService::class, 'router_id', 'id');
     }
 
-    public function statusChecks()
+    public function events(): HasMany
     {
-        return $this->hasMany(RouterStatusCheck::class);
+        return $this->hasMany(RouterEvent::class, 'router_id', 'id');
+    }
+
+    public function provisions(): HasMany
+    {
+        return $this->hasMany(RouterProvision::class, 'router_id', 'id');
+    }
+
+    /**
+     * ✅ Router has ONE credentials row
+     */
+    public function credential(): HasOne
+    {
+        return $this->hasOne(RouterCredential::class, 'router_id', 'id');
+    }
+
+    /**
+     * Backward-compatible alias (if older code uses $router->credentials)
+     */
+    public function credentials(): HasOne
+    {
+        return $this->credential();
+    }
+
+    /**
+     * ✅ All metrics (charts)
+     */
+    public function metrics(): HasMany
+    {
+        return $this->hasMany(RouterMetric::class, 'router_id', 'id');
+    }
+
+    /**
+     * ✅ Latest metric row for badges
+     */
+    public function latestMetric(): HasOne
+    {
+        return $this->hasOne(RouterMetric::class, 'router_id', 'id')
+            ->latestOfMany('collected_at');
     }
 }
