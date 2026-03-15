@@ -1,0 +1,1 @@
+function hexMD5(s){ return s; }
