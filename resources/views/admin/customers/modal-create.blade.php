@@ -27,12 +27,25 @@
         >
             @csrf
 
+            {{-- TYPE --}}
+            <div>
+                <label class="block text-sm mb-1">Type</label>
+                <select
+                    name="type"
+                    required
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                >
+                    <option value="hotspot">Hotspot</option>
+                    <option value="pppoe">PPPoE</option>
+                </select>
+            </div>
+
             {{-- NAME --}}
             <div>
                 <label class="block text-sm mb-1">Name</label>
                 <input
                     type="text"
-                    name="name"
+                    name="full_name"
                     required
                     class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
                 >
@@ -49,33 +62,46 @@
                 >
             </div>
 
-            {{-- ADDRESS --}}
-            <div>
-                <label class="block text-sm mb-1">Address</label>
-                <input
-                    type="text"
-                    name="address"
-                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
-                >
-            </div>
-
-            {{-- LOCATION (NEW ✅) --}}
+            {{-- LOCATION --}}
             <div>
                 <label class="block text-sm mb-1">Location</label>
                 <select
-                    name="location_id[]"
-                    multiple
+                    name="location_id"
                     class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
                 >
+                    <option value="">Select location</option>
                     @foreach($locations as $location)
                         <option value="{{ $location->id }}">
                             {{ $location->name }}
                         </option>
                     @endforeach
                 </select>
-                <p class="text-xs text-gray-400 mt-1">
-                    You can select multiple locations
-                </p>
+            </div>
+
+            {{-- DEVICE LIMIT --}}
+            <div>
+                <label class="block text-sm mb-1">Device</label>
+                <input
+                    type="number"
+                    name="device_limit"
+                    value="1"
+                    min="1"
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                >
+            </div>
+
+            {{-- STATUS --}}
+            <div>
+                <label class="block text-sm mb-1">Status</label>
+                <select
+                    name="status"
+                    required
+                    class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-indigo-200"
+                >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="suspended">Suspended</option>
+                </select>
             </div>
 
             {{-- ACTIONS --}}

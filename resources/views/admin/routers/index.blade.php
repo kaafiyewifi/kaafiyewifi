@@ -141,7 +141,7 @@
 
                             // Provisioning label (keep by status)
                             $provLabel = match ($status) {
-                                'connected' => 'Completed',
+                                'connected', 'online' => 'Completed',
                                 'services_pending' => 'Services Pending',
                                 'pending', 'provisioning' => 'Command Pending',
                                 'error' => 'Failed',
@@ -152,8 +152,8 @@
                             $cpu = $m?->cpu_load;
 
                             $memUsedMB = null;
-                            if ($m?->mem_total && $m?->mem_free !== null) {
-                                $memUsedMB = ($m->mem_total - $m->mem_free) / 1024 / 1024;
+                            if ($m?->total_memory && $m?->free_memory !== null) {
+                                $memUsedMB = ($m->total_memory - $m->free_memory) / 1024 / 1024;
                             }
 
                             // ✅ Online/Offline by last_seen_at freshness (NOT by status)

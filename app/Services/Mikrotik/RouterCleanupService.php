@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Routers;
+namespace App\Services\Mikrotik;
 
 use App\Models\Router;
 use Illuminate\Support\Collection;

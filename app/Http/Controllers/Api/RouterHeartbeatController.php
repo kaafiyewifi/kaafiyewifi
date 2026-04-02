@@ -17,7 +17,7 @@ class RouterHeartbeatController extends Controller
 {
     public function store(Request $request): JsonResponse
     {
-        // ✅ JSON-only validation (prevents 302 redirects)
+        // JSON-only validation (prevents 302 redirects)
         $v = Validator::make($request->all(), [
             'identity'            => ['required', 'string', 'max:120'],
 
@@ -30,7 +30,7 @@ class RouterHeartbeatController extends Controller
             'free_hdd_space'      => ['nullable', 'integer'],
             'total_hdd_space'     => ['nullable', 'integer'],
 
-            // ✅ allow alt names used by some scripts
+            // allow alt names used by some scripts
             'free_mem'            => ['nullable', 'integer'],
             'total_mem'           => ['nullable', 'integer'],
             'free_disk'           => ['nullable', 'integer'],
@@ -65,7 +65,7 @@ class RouterHeartbeatController extends Controller
 
         $routerTable = (new Router())->getTable();
 
-        // ✅ Find router safely even if identity stored in other column
+        // Find router safely even if identity stored in other column
         $routerQ = Router::withoutGlobalScopes();
         $routerQ->where(function ($q) use ($identity, $routerTable) {
             foreach (['identity', 'name', 'router_identity'] as $col) {
@@ -85,20 +85,72 @@ class RouterHeartbeatController extends Controller
             ], 404);
         }
 
-        // ✅ Update router heartbeat
+        // Update router heartbeat summary on routers table
         $routerUpdates = [];
+
         if (Schema::hasColumn($routerTable, 'status')) {
-            $routerUpdates['status'] = 'connected';
+            $routerUpdates['status'] = 'online';
         }
+
         if (Schema::hasColumn($routerTable, 'last_seen_at')) {
             $routerUpdates['last_seen_at'] = now();
+        }
+
+        if (isset($data['cpu_load']) && Schema::hasColumn($routerTable, 'cpu_load')) {
+            $routerUpdates['cpu_load'] = (int) $data['cpu_load'];
+        }
+
+        if (isset($data['free_memory']) && Schema::hasColumn($routerTable, 'free_memory')) {
+            $routerUpdates['free_memory'] = (int) $data['free_memory'];
+        }
+
+        if (isset($data['total_memory']) && Schema::hasColumn($routerTable, 'total_memory')) {
+            $routerUpdates['total_memory'] = (int) $data['total_memory'];
+        }
+
+        if (isset($data['free_hdd_space']) && Schema::hasColumn($routerTable, 'free_hdd_space')) {
+            $routerUpdates['free_hdd_space'] = (int) $data['free_hdd_space'];
+        }
+
+        if (isset($data['total_hdd_space']) && Schema::hasColumn($routerTable, 'total_hdd_space')) {
+            $routerUpdates['total_hdd_space'] = (int) $data['total_hdd_space'];
+        }
+
+        if (!empty($data['version']) && Schema::hasColumn($routerTable, 'routeros_version')) {
+            $routerUpdates['routeros_version'] = $data['version'];
+        }
+
+        if (!empty($data['board_name']) && Schema::hasColumn($routerTable, 'board_name')) {
+            $routerUpdates['board_name'] = $data['board_name'];
+        }
+
+        if (!empty($data['architecture_name']) && Schema::hasColumn($routerTable, 'architecture_name')) {
+            $routerUpdates['architecture_name'] = $data['architecture_name'];
+        }
+
+        if (Schema::hasColumn($routerTable, 'last_heartbeat_payload')) {
+            $routerUpdates['last_heartbeat_payload'] = [
+                'identity'            => $identity,
+                'cpu_load'            => $data['cpu_load'] ?? null,
+                'free_memory'         => $data['free_memory'] ?? null,
+                'total_memory'        => $data['total_memory'] ?? null,
+                'free_hdd_space'      => $data['free_hdd_space'] ?? null,
+                'total_hdd_space'     => $data['total_hdd_space'] ?? null,
+                'uptime'              => $data['uptime'] ?? null,
+                'version'             => $data['version'] ?? null,
+                'board_name'          => $data['board_name'] ?? null,
+                'architecture_name'   => $data['architecture_name'] ?? null,
+                'received_at'         => now()->toDateTimeString(),
+                'source_ip'           => $request->ip(),
+                'method'              => $request->method(),
+            ];
         }
 
         if (!empty($routerUpdates)) {
             $router->forceFill($routerUpdates)->save();
         }
 
-        // ✅ Store metrics snapshot (only fill columns that exist)
+        // Store metrics snapshot (only fill columns that exist)
         $metric = new RouterMetric();
         $metricTable = $metric->getTable();
 
@@ -130,7 +182,7 @@ class RouterHeartbeatController extends Controller
             // metrics failure should not break heartbeat
         }
 
-        // ✅ Log heartbeat (ignore if RouterLog schema differs)
+        // Log heartbeat (ignore if RouterLog schema differs)
         try {
             RouterLog::create([
                 'router_id' => $router->id,
@@ -140,6 +192,7 @@ class RouterHeartbeatController extends Controller
                 'meta'      => [
                     'ip' => $request->ip(),
                     'method' => $request->method(),
+                    'identity' => $identity,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -149,6 +202,7 @@ class RouterHeartbeatController extends Controller
         return response()->json([
             'ok' => true,
             'router_id' => $router->id,
+            'status' => 'online',
         ], 200);
     }
 }

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kaafiye WiFi Status</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page">
+  <div class="card">
+    <h1>Kaafiye WiFi</h1>
+    <p class="subtitle">Connection status</p>
+
+    <div class="status-grid">
+      <div><strong>User:</strong> $(username)</div>
+      <div><strong>IP:</strong> $(ip)</div>
+      <div><strong>MAC:</strong> $(mac)</div>
+      <div><strong>Uptime:</strong> $(uptime)</div>
+      <div><strong>Bytes In:</strong> $(bytes-in-nice)</div>
+      <div><strong>Bytes Out:</strong> $(bytes-out-nice)</div>
+    </div>
+
+    <a class="button-link danger" href="$(link-logout)">Logout</a>
+  </div>
+</div>
+</body>
+</html>

@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Carbon\Carbon;
 
 class Subscription extends Model
 {
@@ -14,209 +13,81 @@ class Subscription extends Model
      * MASS ASSIGNABLE
      * =========================== */
     protected $fillable = [
-    'customer_id',
-    'plan_id',
-    'price',
-    'starts_at',
-    'expires_at',
-    'status',
-    'auto_renew',
-    'router_username',
-    'router_password',
-
-
+        'name',
+        'price',
+        'base_days',
+        'upload_speed',
+        'upload_unit',
+        'download_speed',
+        'download_unit',
+        'status',
+        'description',
     ];
 
     /* ===========================
      * CASTS
      * =========================== */
     protected $casts = [
-        'starts_at'  => 'datetime',
-        'expires_at' => 'datetime',
-        'auto_renew' => 'boolean',
+        'price'      => 'decimal:2',
+        'base_days'  => 'integer',
     ];
 
     /* ===========================
      * RELATIONSHIPS
      * =========================== */
-    public function customer()
+    public function customerSubscriptions()
     {
-        return $this->belongsTo(Customer::class);
-    }
-
-    public function plan()
-    {
-        return $this->belongsTo(SubscriptionPlan::class);
-    }
-
-    public function payments()
-    {
-        return $this->hasMany(Payment::class);
+        return $this->hasMany(CustomerSubscription::class, 'subscription_id');
     }
 
     /* ===========================
      * SCOPES
      * =========================== */
-
-    /**
-     * Active subscriptions (status + time)
-     */
     public function scopeActive($query)
     {
-        return $query
-            ->where('status', 'active')
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '>', now());
+        return $query->where('status', 'active');
     }
 
-    /**
-     * Expired subscriptions
-     */
-    public function scopeExpired($query)
+    public function scopeInactive($query)
     {
-        return $query
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<=', now());
+        return $query->where('status', 'inactive');
     }
 
     /* ===========================
-     * STATUS HELPERS
+     * HELPERS
      * =========================== */
-
-    public function isActive(): bool
+    public function calculatePriceForDays(int $days): float
     {
-        return $this->status === 'active'
-            && $this->expires_at
-            && $this->expires_at->isFuture();
+        $days = max(1, $days);
+        $baseDays = max(1, (int) $this->base_days);
+
+        return round(((float) $this->price / $baseDays) * $days, 2);
     }
 
-    public function isExpired(): bool
+    public function calculatePriceForHours(int $hours): float
     {
-        return $this->expires_at !== null
-            && $this->expires_at->isPast();
+        $hours = max(1, $hours);
+        $baseDays = max(1, (int) $this->base_days);
+        $baseHours = $baseDays * 24;
+
+        return round(((float) $this->price / $baseHours) * $hours, 2);
     }
 
-    public function isPaused(): bool
+    public function uploadLabel(): string
     {
-        return $this->status === 'paused';
-    }
-
-    /* ===========================
-     * REMAINING TIME
-     * =========================== */
-
-    /**
-     * Remaining days (integer)
-     */
-    public function daysRemaining(): int
-    {
-        if (!$this->expires_at) {
-            return 0;
-        }
-
-        return now()->diffInDays($this->expires_at, false);
-    }
-
-    /**
-     * Remaining hours (integer)
-     */
-    public function hoursRemaining(): int
-    {
-        if (!$this->expires_at) {
-            return 0;
-        }
-
-        return now()->diffInHours($this->expires_at, false);
-    }
-
-    /**
-     * Remaining time (human readable)
-     * Example: "4 days", "3 hours", "Expired"
-     */
-    public function remainingLabel(): string
-    {
-        if (!$this->expires_at) {
+        if (!$this->upload_speed) {
             return '—';
         }
 
-        if ($this->expires_at->isPast()) {
-            return 'Expired';
-        }
-
-        $days  = $this->daysRemaining();
-        $hours = $this->hoursRemaining();
-
-        if ($days >= 1) {
-            return $days . ' day' . ($days > 1 ? 's' : '');
-        }
-
-        if ($hours >= 1) {
-            return $hours . ' hour' . ($hours > 1 ? 's' : '');
-        }
-
-        return 'Less than 1 hour';
+        return $this->upload_speed . ' ' . ($this->upload_unit ?: 'Mbps');
     }
 
-    /* ===========================
-     * ACTION HELPERS
-     * =========================== */
-
-    /**
-     * Extend by days
-     */
-    public function extendDays(int $days): void
+    public function downloadLabel(): string
     {
-        if ($days <= 0 || !$this->expires_at) {
-            return;
+        if (!$this->download_speed) {
+            return '—';
         }
 
-        $this->update([
-            'expires_at' => $this->expires_at->copy()->addDays($days),
-        ]);
-    }
-
-    /**
-     * Extend by hours
-     */
-    public function extendHours(int $hours): void
-    {
-        if ($hours <= 0 || !$this->expires_at) {
-            return;
-        }
-
-        $this->update([
-            'expires_at' => $this->expires_at->copy()->addHours($hours),
-        ]);
-    }
-
-    /**
-     * Pause subscription
-     */
-    public function pause(): void
-    {
-        if ($this->status !== 'paused') {
-            $this->update(['status' => 'paused']);
-        }
-    }
-
-    /**
-     * Resume subscription
-     */
-    public function resume(): void
-    {
-        if ($this->status !== 'active') {
-            $this->update(['status' => 'active']);
-        }
-    }
-
-    /**
-     * Cancel subscription permanently
-     */
-    public function cancel(): void
-    {
-        $this->update([
-            'status'     => 'cancelled',
-            'auto_renew' => false,
-        ]);
+        return $this->download_speed . ' ' . ($this->download_unit ?: 'Mbps');
     }
 }

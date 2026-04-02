@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kaafiye WiFi Login</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="md5.js"></script>
+</head>
+<body>
+<div class="page">
+  <div class="card">
+    <h1>Kaafiye WiFi</h1>
+    <p class="subtitle">Hotspot Login Page (Router ID: 76)</p>
+
+    $(if error)
+    <div class="alert">$(error)</div>
+    $(endif)
+
+    <form action="$(link-login-only)" method="post" class="form">
+      <input type="hidden" name="dst" value="$(link-orig)">
+      <input type="hidden" name="popup" value="true">
+
+      <label>Username</label>
+      <div class="input-wrap">
+        <img src="img/user.svg" alt="">
+        <input name="username" type="text" placeholder="Enter username" required>
+      </div>
+
+      <label>Password</label>
+      <div class="input-wrap">
+        <img src="img/password.svg" alt="">
+        <input name="password" type="password" placeholder="Enter password" required>
+      </div>
+
+      <button type="submit">Connect Internet</button>
+    </form>
+
+    <div class="footer">Powered by Kaafiye ISP</div>
+  </div>
+</div>
+</body>
+</html>

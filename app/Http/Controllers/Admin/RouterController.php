@@ -138,14 +138,16 @@ class RouterController extends Controller
         ]);
 
         $router = Router::create([
-            'tenant_id' => null,
-            'identity'  => $data['identity'],
-            'name'      => $data['identity'],
-            'mgmt_host' => null,
-            'api_port'  => 8728,
-            'use_tls'   => false,
-            'status'    => RouterStatus::Pending->value,
-            'notes'     => null,
+            'tenant_id'     => null,
+            'identity'      => $data['identity'],
+            'name'          => $data['identity'],
+            'mgmt_host'     => null,
+            'wg_ip'         => null,
+            'radius_secret' => bin2hex(random_bytes(16)),
+            'api_port'      => 8728,
+            'use_tls'       => false,
+            'status'        => RouterStatus::Pending->value,
+            'notes'         => null,
         ]);
 
         $this->safeEvent($router, 'router.created', ['identity' => $router->identity]);
@@ -160,6 +162,11 @@ class RouterController extends Controller
 
     public function issueToken(Router $router, ProvisionTokenService $svc)
     {
+        if (empty($router->radius_secret)) {
+            $router->radius_secret = bin2hex(random_bytes(16));
+            $router->save();
+        }
+
         $result = $svc->create($router, scriptVersion: 'v1', ttlMinutes: 20);
         $plainToken = $result['token'];
 

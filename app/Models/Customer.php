@@ -10,12 +10,31 @@ class Customer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'name',
+        'location_id',
+        'type',
+        'full_name',
         'phone',
-        'address',
+        'username',
+        'password',
+        'device_limit',
         'status',
+        'speed_override_enabled',
+        'download_speed',
+        'download_unit',
+        'upload_speed',
+        'upload_unit',
     ];
+
+    protected $casts = [
+        'speed_override_enabled' => 'boolean',
+        'download_speed' => 'integer',
+        'upload_speed' => 'integer',
+    ];
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
 
     public function locations()
     {
@@ -34,7 +53,6 @@ class Customer extends Model
 
     public function subscriptions()
     {
-        // ✅ SAXITAAN
-        return $this->hasMany(Subscription::class);
+        return $this->hasMany(CustomerSubscription::class);
     }
 }

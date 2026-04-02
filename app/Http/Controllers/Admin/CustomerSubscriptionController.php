@@ -5,161 +5,360 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Subscription;
-use App\Models\SubscriptionPlan;
+use App\Models\CustomerSubscription;
+use App\Services\Radius\RadiusUserService;
+use App\Services\Radius\RadiusCoaService;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
-use App\Services\MikroTikService;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class CustomerSubscriptionController extends Controller
 {
-    /**
-     * SHOW ADD SUBSCRIPTION FORM
-     */
-    public function create(Customer $customer)
+    private function getActiveUserIp(string $username): ?string
     {
-        return view('admin.customers.subscribe', [
-            'customer' => $customer,
-            'plans'    => SubscriptionPlan::where('status', true)->orderBy('price')->get(),
-        ]);
+        return DB::connection('radius')
+            ->table('radacct')
+            ->where('username', $username)
+            ->whereNull('acctstoptime')
+            ->orderByDesc('radacctid')
+            ->value('framedipaddress');
     }
 
-    /**
-     * STORE SUBSCRIPTION + AUTO CREATE ROUTER USER
-     */
-    public function store(Request $request, Customer $customer, MikroTikService $mikrotik)
+    private function createInvoice(int $customerId, float $amount, string $status = 'paid'): int
+    {
+        $data = [
+            'customer_id' => $customerId,
+            'amount' => $amount,
+            'status' => $status,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('invoices', 'paid_at')) {
+            $data['paid_at'] = now();
+        }
+
+        return (int) DB::table('invoices')->insertGetId($data);
+    }
+
+    private function customerSubscriptionTableHas(string $column): bool
+    {
+        return Schema::hasTable('customer_subscriptions')
+            && Schema::hasColumn('customer_subscriptions', $column);
+    }
+
+    private function buildSubscriptionPayload(
+        int $customerId,
+        int $planId,
+        int $days,
+        float $price,
+        $expires,
+        ?int $invoiceId = null
+    ): array {
+        $payload = [
+            'customer_id' => $customerId,
+            'subscription_id' => $planId,
+            'selected_days' => $days,
+            'calculated_price' => $price,
+            'starts_at' => now(),
+            'expires_at' => $expires,
+            'status' => 'active',
+        ];
+
+        if ($invoiceId !== null && $this->customerSubscriptionTableHas('invoice_id')) {
+            $payload['invoice_id'] = $invoiceId;
+        }
+
+        if ($this->customerSubscriptionTableHas('paid_at')) {
+            $payload['paid_at'] = now();
+        }
+
+        return $payload;
+    }
+
+    private function buildSubscriptionUpdatePayload(array $payload, ?int $invoiceId = null): array
+    {
+        if ($invoiceId !== null && $this->customerSubscriptionTableHas('invoice_id')) {
+            $payload['invoice_id'] = $invoiceId;
+        }
+
+        if ($this->customerSubscriptionTableHas('paid_at')) {
+            $payload['paid_at'] = now();
+        }
+
+        return $payload;
+    }
+
+    public function create(Customer $customer)
+    {
+        $plans = Subscription::where('status', 'active')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.customers.subscribe', compact('customer', 'plans'));
+    }
+
+    public function store(Customer $customer, Request $request)
     {
         $data = $request->validate([
-            'plan_id' => 'required|exists:subscription_plans,id',
+            'plan_id' => 'required|exists:subscriptions,id',
+            'type'    => 'required|in:days,hours',
             'value'   => 'required|integer|min:1',
-            'unit'    => 'required|in:days,hours',
         ]);
 
-        // ❗ HAL ACTIVE SUBSCRIPTION OO KALIYA
-        $customer->subscriptions()
+        $hasActive = CustomerSubscription::where('customer_id', $customer->id)
             ->where('status', 'active')
-            ->update(['status' => 'expired']);
+            ->where(function ($q) {
+                $q->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            })
+            ->exists();
 
-        $plan = SubscriptionPlan::findOrFail($data['plan_id']);
+        if ($hasActive) {
+            return redirect()
+                ->route('admin.customers.show', $customer)
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Customer-kan wuxuu hore u leeyahay active subscription',
+                ]);
+        }
 
-        // ⏰ DATES
-        $startsAt = Carbon::now();
-        $expiresAt = $data['unit'] === 'hours'
-            ? $startsAt->copy()->addHours($data['value'])
-            : $startsAt->copy()->addDays($data['value']);
+        $plan = Subscription::findOrFail($data['plan_id']);
+        $value = (int) $data['value'];
 
-        // 💰 PRICE
-        $pricePerDay  = $plan->price / 30;
-        $pricePerHour = $pricePerDay / 24;
+        if ($data['type'] === 'days') {
+            $expires = now()->addDays($value);
+            $price = (float) $plan->calculatePriceForDays($value);
+            $days = $value;
+        } else {
+            $expires = now()->addHours($value);
+            $price = (float) $plan->calculatePriceForHours($value);
+            $days = max(1, (int) ceil($value / 24));
+        }
 
-        $finalPrice = $data['unit'] === 'hours'
-            ? round($pricePerHour * $data['value'], 2)
-            : round($pricePerDay * $data['value'], 2);
+        DB::transaction(function () use ($customer, $plan, $days, $price, $expires) {
+            $invoiceId = $this->createInvoice($customer->id, $price, 'paid');
 
-        // 🔐 ROUTER USER
-        $routerUsername = 'sub_'.$customer->id.'_'.time();
-        $routerPassword = Str::random(8);
+            CustomerSubscription::create(
+                $this->buildSubscriptionPayload(
+                    $customer->id,
+                    $plan->id,
+                    $days,
+                    $price,
+                    $expires,
+                    $invoiceId
+                )
+            );
+        });
 
-        $mikrotik->createHotspotUser(
-            $routerUsername,
-            $routerPassword,
-            $plan->router_profile
+        app(RadiusUserService::class)->setUserActive($customer->username);
+
+        app(RadiusUserService::class)->setUserSpeed(
+            $customer->username,
+            $plan->download_speed ?? 2,
+            $plan->download_unit ?? 'Mbps',
+            $plan->upload_speed ?? 2,
+            $plan->upload_unit ?? 'Mbps'
         );
-
-        // ✅ CREATE SUBSCRIPTION
-        Subscription::create([
-            'customer_id'      => $customer->id,
-            'plan_id'          => $plan->id,
-            'price'            => $finalPrice,
-            'starts_at'        => $startsAt,
-            'expires_at'       => $expiresAt,
-            'status'           => 'active',
-            'auto_renew'       => false,
-            'router_username'  => $routerUsername,
-            'router_password'  => $routerPassword,
-        ]);
 
         return redirect()
             ->route('admin.customers.show', $customer)
             ->with('toast', [
                 'type' => 'success',
-                'message' => 'Subscription + Router user waa la sameeyay',
+                'message' => 'Subscription waa lagu daray',
             ]);
     }
 
-    /**
-     * EXTEND SUBSCRIPTION
-     */
-    public function extend(Request $request, Subscription $sub)
+    public function extend($subscription)
     {
+        $subscription = CustomerSubscription::with(['customer', 'plan'])
+            ->findOrFail($subscription);
+
+        if ($subscription->status === 'cancelled') {
+            return redirect()
+                ->route('admin.customers.show', $subscription->customer_id)
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Subscription cancelled lama extend gareyn karo',
+                ]);
+        }
+
+        return view('admin.subscriptions.extend', [
+            'subscription' => $subscription,
+            'customer'     => $subscription->customer,
+            'plan'         => $subscription->plan,
+        ]);
+    }
+
+    public function extendPost(Request $request, $subscription)
+    {
+        $subscription = CustomerSubscription::with(['customer', 'plan'])
+            ->findOrFail($subscription);
+
+        if ($subscription->status === 'cancelled') {
+            return redirect()
+                ->route('admin.customers.show', $subscription->customer_id)
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Subscription cancelled lama extend gareyn karo',
+                ]);
+        }
+
         $data = $request->validate([
+            'type'  => 'required|in:days,hours',
             'value' => 'required|integer|min:1',
-            'unit'  => 'required|in:days,hours',
         ]);
 
-        $newExpire = $data['unit'] === 'hours'
-            ? $sub->expires_at->copy()->addHours($data['value'])
-            : $sub->expires_at->copy()->addDays($data['value']);
+        $value = (int) $data['value'];
 
-        $sub->update(['expires_at' => $newExpire]);
+        if ($data['type'] === 'days') {
+            $price = (float) $subscription->plan->calculatePriceForDays($value);
+            $newExpiry = $subscription->expires_at && $subscription->expires_at->isFuture()
+                ? $subscription->expires_at->copy()->addDays($value)
+                : now()->addDays($value);
 
-        return back()->with('toast', [
-            'type' => 'success',
-            'message' => 'Subscription waa la kordhiyay',
-        ]);
-    }
+            $selectedDays = ($subscription->selected_days ?? 0) + $value;
+        } else {
+            $price = (float) $subscription->plan->calculatePriceForHours($value);
+            $newExpiry = $subscription->expires_at && $subscription->expires_at->isFuture()
+                ? $subscription->expires_at->copy()->addHours($value)
+                : now()->addHours($value);
 
-    /**
-     * PAUSE SUBSCRIPTION + DISABLE ROUTER USER
-     */
-    public function pause(Subscription $sub, MikroTikService $mikrotik)
-    {
-        if ($sub->router_username) {
-            $mikrotik->disableUser($sub->router_username);
+            $selectedDays = ($subscription->selected_days ?? 0) + max(1, (int) ceil($value / 24));
         }
 
-        $sub->update(['status' => 'paused']);
+        DB::transaction(function () use ($subscription, $price, $newExpiry, $selectedDays) {
+            $invoiceId = $this->createInvoice($subscription->customer_id, $price, 'paid');
 
-        return back()->with('toast', [
-            'type' => 'warning',
-            'message' => 'Subscription waa la hakiyay (Router disabled)',
-        ]);
+            $subscription->update(
+                $this->buildSubscriptionUpdatePayload([
+                    'selected_days' => $selectedDays,
+                    'calculated_price' => ($subscription->calculated_price ?? 0) + $price,
+                    'expires_at' => $newExpiry,
+                    'status' => 'active',
+                ], $invoiceId)
+            );
+        });
+
+        app(RadiusUserService::class)->setUserActive($subscription->customer->username);
+
+        app(RadiusUserService::class)->setUserSpeed(
+            $subscription->customer->username,
+            $subscription->plan->download_speed ?? 2,
+            $subscription->plan->download_unit ?? 'Mbps',
+            $subscription->plan->upload_speed ?? 2,
+            $subscription->plan->upload_unit ?? 'Mbps'
+        );
+
+        return redirect()
+            ->route('admin.customers.show', $subscription->customer_id)
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Subscription waa la kordhiyay',
+            ]);
     }
 
-    /**
-     * RESUME SUBSCRIPTION + ENABLE ROUTER USER
-     */
-    public function resume(Subscription $sub, MikroTikService $mikrotik)
+    public function pause($subscription)
     {
-        if ($sub->router_username) {
-            $mikrotik->enableUser($sub->router_username);
+        $sub = CustomerSubscription::with('customer')->findOrFail($subscription);
+
+        if ($sub->status === 'active') {
+            $sub->update([
+                'status' => 'paused',
+            ]);
+
+            app(RadiusUserService::class)->setUserInactive($sub->customer->username);
+            app(RadiusUserService::class)->clearUserSpeed($sub->customer->username);
+
+            $ip = $this->getActiveUserIp($sub->customer->username);
+
+            app(RadiusCoaService::class)->disconnect($sub->customer->username, $ip);
         }
 
-        $sub->update(['status' => 'active']);
-
-        return back()->with('toast', [
-            'type' => 'success',
-            'message' => 'Subscription waa la sii waday (Router enabled)',
-        ]);
+        return redirect()
+            ->route('admin.customers.show', $sub->customer_id)
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Subscription waa la pause gareeyay',
+            ]);
     }
 
-    /**
-     * CANCEL SUBSCRIPTION + DELETE ROUTER USER
-     */
-    public function cancel(Subscription $sub, MikroTikService $mikrotik)
+    public function resume($subscription)
     {
-        if ($sub->router_username) {
-            $mikrotik->deleteUser($sub->router_username);
+        $subscription = CustomerSubscription::with(['customer', 'plan'])
+            ->findOrFail($subscription);
+
+        if ($subscription->status === 'cancelled') {
+            return redirect()
+                ->route('admin.customers.show', $subscription->customer_id)
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Subscription cancelled lama resume gareyn karo',
+                ]);
         }
+
+        $hasAnotherActiveSubscription = CustomerSubscription::where('customer_id', $subscription->customer_id)
+            ->where('id', '!=', $subscription->id)
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            })
+            ->exists();
+
+        if ($hasAnotherActiveSubscription) {
+            return redirect()
+                ->route('admin.customers.show', $subscription->customer_id)
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Customer-kan wuxuu hore u leeyahay active subscription kale',
+                ]);
+        }
+
+        if (in_array($subscription->status, ['paused', 'expired', 'inactive'], true)) {
+            $subscription->update([
+                'status' => 'active',
+            ]);
+
+            app(RadiusUserService::class)->setUserActive($subscription->customer->username);
+
+            app(RadiusUserService::class)->setUserSpeed(
+                $subscription->customer->username,
+                $subscription->plan->download_speed ?? 2,
+                $subscription->plan->download_unit ?? 'Mbps',
+                $subscription->plan->upload_speed ?? 2,
+                $subscription->plan->upload_unit ?? 'Mbps'
+            );
+        }
+
+        return redirect()
+            ->route('admin.customers.show', $subscription->customer_id)
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Subscription waa la resume gareeyay',
+            ]);
+    }
+
+    public function cancel($subscription)
+    {
+        $sub = CustomerSubscription::with('customer')->findOrFail($subscription);
 
         $sub->update([
-            'status'     => 'cancelled',
-            'auto_renew' => false,
+            'status' => 'cancelled',
         ]);
 
-        return back()->with('toast', [
-            'type' => 'error',
-            'message' => 'Subscription waa la joojiyay (Router user removed)',
-        ]);
+        app(RadiusUserService::class)->setUserInactive($sub->customer->username);
+        app(RadiusUserService::class)->clearUserSpeed($sub->customer->username);
+
+        $ip = $this->getActiveUserIp($sub->customer->username);
+
+        app(RadiusCoaService::class)->disconnect($sub->customer->username, $ip);
+
+        return redirect()
+            ->route('admin.customers.show', $sub->customer_id)
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Subscription waa la cancel gareeyay',
+            ]);
     }
 }

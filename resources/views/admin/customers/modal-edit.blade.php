@@ -16,12 +16,26 @@
             Edit Customer
         </h2>
 
+        {{-- TYPE --}}
+        <div>
+            <label class="text-sm">Type</label>
+            <select
+                name="type"
+                x-model="editCustomer.type"
+                class="w-full border rounded-lg px-3 py-2"
+                required
+            >
+                <option value="hotspot">Hotspot</option>
+                <option value="pppoe">PPPoE</option>
+            </select>
+        </div>
+
         {{-- NAME --}}
         <div>
             <label class="text-sm">Name</label>
             <input
-                name="name"
-                x-model="editCustomer.name"
+                name="full_name"
+                x-model="editCustomer.full_name"
                 class="w-full border rounded-lg px-3 py-2"
                 required
             >
@@ -38,12 +52,31 @@
             >
         </div>
 
-        {{-- ADDRESS --}}
+        {{-- LOCATION --}}
         <div>
-            <label class="text-sm">Address</label>
+            <label class="text-sm">Location</label>
+            <select
+                name="location_id"
+                x-model="editCustomer.location_id"
+                class="w-full border rounded-lg px-3 py-2"
+            >
+                <option value="">Select location</option>
+                @foreach($locations as $loc)
+                    <option value="{{ $loc->id }}">
+                        {{ $loc->name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
+        {{-- DEVICE --}}
+        <div>
+            <label class="text-sm">Device</label>
             <input
-                name="address"
-                x-model="editCustomer.address"
+                type="number"
+                name="device_limit"
+                x-model="editCustomer.device_limit"
+                min="1"
                 class="w-full border rounded-lg px-3 py-2"
             >
         </div>
@@ -58,25 +91,7 @@
             >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-            </select>
-        </div>
-
-        {{-- LOCATIONS MULTI SELECT --}}
-        <div>
-            <label class="text-sm">Locations</label>
-            <select
-                name="location_id[]"
-                multiple
-                class="w-full border rounded-lg px-3 py-2"
-            >
-                @foreach($locations as $loc)
-                    <option
-                        value="{{ $loc->id }}"
-                        :selected="editCustomer.locations?.some(l => l.id === {{ $loc->id }})"
-                    >
-                        {{ $loc->name }}
-                    </option>
-                @endforeach
+                <option value="suspended">Suspended</option>
             </select>
         </div>
 

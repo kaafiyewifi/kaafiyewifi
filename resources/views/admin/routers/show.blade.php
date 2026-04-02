@@ -58,18 +58,26 @@
     // --------------------------
     // Labels (IMPORTANT FIXES)
     // --------------------------
-    $routerOs = !empty($router->routeros) ? $router->routeros : (!empty($router->router_os) ? $router->router_os : '-');
+    $routerOs = !empty($router->routeros_version)
+        ? $router->routeros_version
+        : (!empty($router->routeros)
+            ? $router->routeros
+            : (!empty($router->router_os)
+                ? $router->router_os
+                : (($m && !empty($m->version)) ? $m->version : '-')));
+
     $mgmtIp   = !empty($router->mgmt_host) ? $router->mgmt_host : '-';
     $apiPort  = !empty($router->api_port) ? $router->api_port : (int) env('MIKROTIK_API_PORT', 8728);
 
     // ✅ Username from router_credentials table (relation: credential)
-    $username = $router->credential?->username ?? '-';
+    $username = $router->credential?->username
+        ?? ($router->api_username ?? env('ROUTER_API_USER', '-'));
 
     // Radius (fallback defaults)
-    $radiusAddress      = !empty($router->radius_address) ? $router->radius_address : '10.9.0.1';
+    $radiusAddress      = !empty($router->radius_address) ? $router->radius_address : env('RADIUS_IP', '10.9.0.1');
     $radiusSecretMasked = '********';
-    $radiusAuthPort     = !empty($router->radius_auth_port) ? $router->radius_auth_port : 1812;
-    $radiusAcctPort     = !empty($router->radius_acct_port) ? $router->radius_acct_port : 1813;
+    $radiusAuthPort     = !empty($router->radius_auth_port) ? $router->radius_auth_port : ((int) env('RADIUS_PORT', 1812) ?: 1812);
+    $radiusAcctPort     = !empty($router->radius_acct_port) ? $router->radius_acct_port : ((int) env('RADIUS_ACCOUNTING_PORT', 1813) ?: 1813);
 
     // Tabs
     $tab = request('tab', 'system');

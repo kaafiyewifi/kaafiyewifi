@@ -122,15 +122,19 @@ return [
         */
         'radius' => [
             'driver' => 'mysql',
-            'host' => env('DB_RADIUS_HOST', '127.0.0.1'),
-            'port' => 3306,
-            'database' => env('DB_RADIUS_DATABASE'),
-            'username' => env('DB_RADIUS_USERNAME'),
-            'password' => env('DB_RADIUS_PASSWORD'),
+            'host' => env('RADIUS_DB_HOST', '127.0.0.1'),
+            'port' => env('RADIUS_DB_PORT', '3306'),
+            'database' => env('RADIUS_DB_DATABASE', 'radius'),
+            'username' => env('RADIUS_DB_USERNAME', 'root'),
+            'password' => env('RADIUS_DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',
+            'prefix_indexes' => true,
             'strict' => true,
+            'engine' => null,
+
         ],
 
     ],

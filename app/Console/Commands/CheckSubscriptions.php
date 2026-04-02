@@ -3,8 +3,12 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\Subscription;
-use App\Services\MikroTikService;
+use App\Models\CustomerSubscription;
+use App\Services\Radius\RadiusUserService;
+use App\Services\Radius\RadiusCoaService;
+use App\Services\Radius\RadiusSessionService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class CheckSubscriptions extends Command
@@ -19,6 +23,16 @@ class CheckSubscriptions extends Command
      */
     protected $description = 'Check and expire subscriptions and disable router users';
 
+    private function getActiveUserIp(string $username): ?string
+    {
+        return DB::connection('radius')
+            ->table('radacct')
+            ->where('username', $username)
+            ->whereNull('acctstoptime')
+            ->orderByDesc('radacctid')
+            ->value('framedipaddress');
+    }
+
     /**
      * Execute the console command
      */
@@ -26,11 +40,14 @@ class CheckSubscriptions extends Command
     {
         $now = Carbon::now();
 
-        $mikrotik = app(MikroTikService::class);
+        $radiusUserService = app(RadiusUserService::class);
+        $radiusCoaService = app(RadiusCoaService::class);
+        $radiusSessionService = app(RadiusSessionService::class);
 
-        $expiredSubs = Subscription::where('status', 'active')
+        $expiredSubs = CustomerSubscription::with('customer')
+            ->where('status', 'active')
             ->whereNotNull('expires_at')
-            ->where('expires_at', '<', $now)
+            ->where('expires_at', '<=', $now)
             ->get();
 
         if ($expiredSubs->isEmpty()) {
@@ -39,18 +56,54 @@ class CheckSubscriptions extends Command
         }
 
         foreach ($expiredSubs as $sub) {
+            $customer = $sub->customer;
+            $username = $customer?->username;
 
-            // Disable router user
-            if ($sub->router_username) {
+            if ($username) {
                 try {
-                    $mikrotik->disableUser($sub->router_username);
-                    $this->info("📡 Router user {$sub->router_username} disabled");
-                } catch (\Exception $e) {
-                    $this->error("❌ Router disable failed for {$sub->router_username}");
+                    $radiusUserService->setUserInactive($username);
+                    $radiusUserService->clearUserSpeed($username);
+                    $radiusUserService->setUserDeviceLimit($username, 1);
+
+                    $ip = $this->getActiveUserIp($username);
+
+                    Log::info('EXPIRE DISCONNECT', [
+                        'subscription_id' => $sub->id,
+                        'customer_id' => $customer?->id,
+                        'username' => $username,
+                        'ip' => $ip,
+                    ]);
+
+                    if ($ip) {
+                        $radiusCoaService->disconnect($username, $ip);
+                    } else {
+                        $radiusCoaService->disconnect($username);
+                    }
+
+                    $radiusSessionService->enforceDeviceLimit($username, 1);
+
+                    DB::connection('radius')
+                        ->table('radacct')
+                        ->where('username', $username)
+                        ->whereNull('acctstoptime')
+                        ->update([
+                            'acctstoptime' => now(),
+                            'acctterminatecause' => 'Admin-Reset',
+                        ]);
+
+                    $this->info("📡 Router user {$username} disabled");
+                } catch (\Throwable $e) {
+                    Log::error('Subscription expire disconnect failed', [
+                        'subscription_id' => $sub->id,
+                        'customer_id' => $customer?->id,
+                        'username' => $username,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    $this->error("❌ Router disable failed for {$username}: {$e->getMessage()}");
                 }
             }
 
-            // Update DB status
             $sub->update([
                 'status' => 'expired',
             ]);

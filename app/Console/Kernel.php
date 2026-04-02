@@ -54,6 +54,34 @@ class Kernel extends ConsoleKernel
         ->everyMinute()
         ->onOneServer()
         ->withoutOverlapping(5);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Subscription Expiry Scheduler
+        |--------------------------------------------------------------------------
+        | - Expires finished subscriptions
+        | - Disables radius access + clears speed
+        |--------------------------------------------------------------------------
+        */
+        $schedule->command('subscriptions:check')
+            ->name('expire-finished-subscriptions')
+            ->everyMinute()
+            ->onOneServer()
+            ->withoutOverlapping(5);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Radius Cleanup Sessions Scheduler
+        |--------------------------------------------------------------------------
+        | - Enforces customer device limits
+        | - Disconnects extra active sessions
+        |--------------------------------------------------------------------------
+        */
+        $schedule->command('radius:cleanup-sessions')
+            ->name('radius-cleanup-sessions')
+            ->everyMinute()
+            ->onOneServer()
+            ->withoutOverlapping(5);
     }
 
     /**

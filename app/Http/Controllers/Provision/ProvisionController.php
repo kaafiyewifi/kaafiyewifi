@@ -6,11 +6,13 @@ namespace App\Http\Controllers\Provision;
 
 use App\Http\Controllers\Controller;
 use App\Models\Router;
+use App\Services\RadiusClientSyncService;
 use App\Services\Routers\ProvisionTokenService;
 use App\Services\Routers\RouterEventService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class ProvisionController extends Controller
 {
@@ -18,10 +20,6 @@ class ProvisionController extends Controller
         private readonly ProvisionTokenService $tokens
     ) {}
 
-    /**
-     * GET /provision/{token}
-     * MikroTik fetches provisioning script here (text/plain).
-     */
     public function script(Request $request, string $token): Response
     {
         [$row, $router] = $this->tokens->findValidTokenAndRouter($token);
@@ -35,6 +33,7 @@ class ProvisionController extends Controller
 
         $this->tokens->markServed($row);
 
+        $this->ensureStableRadiusSecret($router);
         $this->ensureHotspotAssets($router);
 
         $script = $this->buildRouterOsScript($router, $token);
@@ -53,6 +52,78 @@ class ProvisionController extends Controller
         ]);
     }
 
+    public function callback(Request $request, string $token): Response
+    {
+        [$row, $router] = $this->tokens->findValidTokenAndRouter($token);
+
+        if (!$row || !$router) {
+            return response("Invalid or expired token\n", 404, [
+                'Content-Type'  => 'text/plain; charset=UTF-8',
+                'Cache-Control' => 'no-store',
+            ]);
+        }
+
+        $identity = trim((string) $request->input('identity', $request->query('identity', '')));
+        $mgmtIp   = trim((string) $request->input('mgmt_ip', $request->query('mgmt_ip', '')));
+        $wgIp     = trim((string) $request->input('wg_ip', $request->query('wg_ip', '')));
+
+        if ($identity !== '') {
+            $router->identity = $identity;
+        }
+
+        if ($mgmtIp !== '') {
+            $router->mgmt_host = $mgmtIp;
+        }
+
+        if ($wgIp !== '') {
+            $router->wg_ip = $wgIp;
+        }
+
+        $this->ensureStableRadiusSecret($router, false);
+
+        $router->status = 'provisioned';
+        $router->provisioned_at = now();
+        $router->last_seen_at = now();
+        $router->save();
+
+        try {
+            app(RadiusClientSyncService::class)->sync();
+
+            Log::info('Provision callback radius sync completed', [
+                'router_id' => $router->id,
+                'identity' => $router->identity,
+                'wg_ip' => $router->wg_ip,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Provision callback radius sync failed', [
+                'router_id' => $router->id,
+                'token' => $token,
+                'identity' => $router->identity,
+                'wg_ip' => $router->wg_ip,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $this->tokens->markUsed($row);
+
+        app(RouterEventService::class)->log(
+            $router,
+            'provision.callback_received',
+            [
+                'ip'       => $request->ip(),
+                'identity' => $identity,
+                'mgmt_ip'  => $mgmtIp,
+                'wg_ip'    => $wgIp,
+                'ua'       => (string) $request->userAgent(),
+            ]
+        );
+
+        return response("OK\n", 200, [
+            'Content-Type'  => 'text/plain; charset=UTF-8',
+            'Cache-Control' => 'no-store',
+        ]);
+    }
+
     private function buildRouterOsScript(Router $router, string $token): string
     {
         $apiPort  = (int) env('MIKROTIK_API_PORT', 8728);
@@ -65,26 +136,32 @@ class ProvisionController extends Controller
         $wgServerPublicKey = (string) env('WG_SERVER_PUBLIC_KEY', '4EAWup9It8nUiZyqsgsRMgocPq8O6/5q+0CtYrs173k=');
         $wgRouterAddress   = (string) env('WG_ROUTER_ADDRESS', '10.9.0.2/24');
         $wgServerAddress   = (string) env('WG_SERVER_ADDRESS', '10.9.0.1/32');
+        $wgListenPort      = (int) env('WG_ROUTER_LISTEN_PORT', 13231);
 
         $radiusIp = (string) env('RADIUS_IP', '10.9.0.1');
 
-        if (empty($router->radius_secret)) {
-            $router->radius_secret = bin2hex(random_bytes(16));
-            $router->save();
-        }
-
+        $this->ensureStableRadiusSecret($router);
         $radiusSecret = (string) $router->radius_secret;
 
         $hotspotBaseRoot = rtrim((string) env('HOTSPOT_BASE_URL', 'https://kaafiye.online/hotspot-files'), '/');
         $hotspotBase = $hotspotBaseRoot . '/' . $router->getKey();
 
-        $callbackUrl   = url('/api/provision/callback/' . $token);
-        $heartbeatUrl  = url('/api/routers/heartbeat');
-        $snmpCommunity = (string) env('SNMP_COMMUNITY', 'kaafiye');
+        $callbackUrl     = url('/api/provision/callback/' . $token);
+        $heartbeatUrl    = url('/api/routers/heartbeat');
+        $snmpCommunity   = (string) env('SNMP_COMMUNITY', 'kaafiye');
+        $hotspotDnsName  = (string) env('HOTSPOT_DNS_NAME', 'login.kaafiye.online');
+        $hotspotLanIp    = '10.10.0.1';
+        $hotspotLanCidr  = '10.10.0.1/24';
+        $hotspotNetwork  = '10.10.0.0/24';
+        $hotspotPoolName = 'hs-pool';
+        $hotspotServer   = 'hotspot1';
+        $hotspotProfile  = 'hsprof1';
+        $hotspotDhcp     = 'hs-dhcp';
 
         $template = <<<'RSC'
 # ================================
 # KAAFIYE PROVISION SCRIPT (FINAL)
+# CLEAN RESET + STABLE WG/RADIUS
 # RouterOS v7 compatible
 # ================================
 
@@ -98,6 +175,7 @@ class ProvisionController extends Controller
 
 :global kfWgEndpoint "{{WG_ENDPOINT}}";
 :global kfWgPort {{WG_PORT}};
+:global kfWgListenPort {{WG_LISTEN_PORT}};
 :global kfWgServerPub "{{WG_SERVER_PUB}}";
 :global kfWgRouterAddress "{{WG_ROUTER_ADDRESS}}";
 :global kfWgServerAddress "{{WG_SERVER_ADDRESS}}";
@@ -107,8 +185,19 @@ class ProvisionController extends Controller
 
 :global kfHotspotBase "{{HOTSPOT_BASE}}";
 :global kfSnmpCommunity "{{SNMP_COMMUNITY}}";
+:global kfHotspotDnsName "{{HOTSPOT_DNS_NAME}}";
+:global kfHotspotLanIp "{{HOTSPOT_LAN_IP}}";
+:global kfHotspotLanCidr "{{HOTSPOT_LAN_CIDR}}";
+:global kfHotspotNetwork "{{HOTSPOT_NETWORK}}";
+:global kfHotspotPoolName "{{HOTSPOT_POOL_NAME}}";
+:global kfHotspotServer "{{HOTSPOT_SERVER}}";
+:global kfHotspotProfile "{{HOTSPOT_PROFILE}}";
+:global kfHotspotDhcp "{{HOTSPOT_DHCP}}";
 
 :local kfProvisionOk true;
+:local kfLanBridge "";
+:local kfProvisionBridge "bridgeLocal";
+:local kfBridgeCreated false;
 
 :put "-----------------Downloading configuration-----------------";
 :put "Downloading configuration...";
@@ -136,7 +225,7 @@ class ProvisionController extends Controller
 } on-error={}
 
 :if ($kfMgmtIp = "") do={
-  :foreach ifn in={"bridgeLocal";"bridge";"ether1";"ether2"} do={
+  :foreach ifn in={"bridgeLocal";"bridge";"bridge1";"ether1";"ether2"} do={
     :do {
       :local idx2 [/ip address find where interface=$ifn disabled=no];
       :if ([:len $idx2] > 0) do={
@@ -151,14 +240,79 @@ class ProvisionController extends Controller
 :put ("-----------------Detected mgmt_ip=" . $kfMgmtIp . "-----------------");
 
 # =====================================================================
+# CLEAN OLD HOTSPOT/LAN CONFIG FIRST
+# =====================================================================
+:put "-----------------Cleaning old hotspot/LAN configuration-----------------";
+
+:do { /ip hotspot disable [find]; } on-error={}
+:do { /ip hotspot remove [find]; } on-error={}
+:do { /ip hotspot user remove [find]; } on-error={}
+:do { /ip hotspot host remove [find]; } on-error={}
+:do { /ip hotspot ip-binding remove [find]; } on-error={}
+:do { /ip hotspot service-port remove [find]; } on-error={}
+:do { /ip hotspot profile remove [find where name=$kfHotspotProfile]; } on-error={}
+:do { /ip dhcp-server disable [find where name=$kfHotspotDhcp]; } on-error={}
+:do { /ip dhcp-server remove [find where name=$kfHotspotDhcp]; } on-error={}
+:do { /ip dhcp-server network remove [find where address=$kfHotspotNetwork]; } on-error={}
+:do { /ip pool remove [find where name=$kfHotspotPoolName]; } on-error={}
+:do { /ip dns static remove [find where comment="KAAFIYE-HOTSPOT-DNS"]; } on-error={}
+:do {
+  :foreach wgRule in=[/ip hotspot walled-garden find where comment="KAAFIYE-WG"] do={
+    /ip hotspot walled-garden remove $wgRule;
+  }
+} on-error={}
+:do { /ip address remove [find where comment="KAAFIYE-HOTSPOT"]; } on-error={}
+
+# Try remove old default LAN from common reset configs
+:do { /ip dhcp-server disable [find where name="dhcp1"]; } on-error={}
+:do { /ip dhcp-server remove [find where name="dhcp1"]; } on-error={}
+:do { /ip pool remove [find where name="dhcp_pool"]; } on-error={}
+:do { /ip dhcp-server network remove [find where address="192.168.88.0/24"]; } on-error={}
+:do { /ip address remove [find where address="192.168.88.1/24"]; } on-error={}
+
+# Detect existing bridge or create clean one
+:if ([:len [/interface bridge find where name=$kfProvisionBridge]] > 0) do={
+  :set kfLanBridge $kfProvisionBridge;
+} else={
+  :if ([:len [/interface bridge find where name="bridge1"]] > 0) do={
+    :set kfLanBridge "bridge1";
+  } else={
+    :if ([:len [/interface bridge find where name="bridge"]] > 0) do={
+      :set kfLanBridge "bridge";
+    } else={
+      /interface bridge add name=$kfProvisionBridge comment="KAAFIYE-LAN";
+      :set kfLanBridge $kfProvisionBridge;
+      :set kfBridgeCreated true;
+    }
+  }
+}
+
+# If we created new bridge, add common LAN ports
+:if ($kfBridgeCreated = true) do={
+  :foreach lanIf in={"ether2";"ether3";"ether4";"ether5";"wlan1"} do={
+    :if ([:len [/interface find where name=$lanIf]] > 0) do={
+      :if ([:len [/interface bridge port find where interface=$lanIf]] = 0) do={
+        /interface bridge port add interface=$lanIf bridge=$kfLanBridge;
+      }
+    }
+  }
+}
+
+:put ("-----------------Using LAN bridge=" . $kfLanBridge . "-----------------");
+
+# =====================================================================
 # WIREGUARD
 # =====================================================================
 :put "-----------------Downloading WireGuard configuration file-----------------";
 
 :do {
   :if ([:len [/interface wireguard find where name=$kfWgName]] = 0) do={
-    /interface wireguard add name=$kfWgName listen-port=0 mtu=1420 comment="KAAFIYE";
+    /interface wireguard add name=$kfWgName listen-port=$kfWgListenPort mtu=1420 comment="KAAFIYE";
+  } else={
+    /interface wireguard set [find where name=$kfWgName] listen-port=$kfWgListenPort mtu=1420 comment="KAAFIYE";
   }
+
+  :do { /ip address remove [find where interface=$kfWgName and address!=$kfWgRouterAddress]; } on-error={}
 
   :if ([:len [/ip address find where address=$kfWgRouterAddress interface=$kfWgName]] = 0) do={
     /ip address add address=$kfWgRouterAddress interface=$kfWgName comment="KAAFIYE-WG";
@@ -172,7 +326,7 @@ class ProvisionController extends Controller
       public-key=$kfWgServerPub \
       endpoint-address=$kfWgEndpoint \
       endpoint-port=$kfWgPort \
-      allowed-address=$kfWgServerAddress \
+      allowed-address=10.9.0.0/24 \
       persistent-keepalive=25s \
       comment="KAAFIYE-SERVER";
   } else={
@@ -180,7 +334,7 @@ class ProvisionController extends Controller
       public-key=$kfWgServerPub \
       endpoint-address=$kfWgEndpoint \
       endpoint-port=$kfWgPort \
-      allowed-address=$kfWgServerAddress \
+      allowed-address=10.9.0.0/24 \
       persistent-keepalive=25s \
       comment="KAAFIYE-SERVER";
   }
@@ -224,33 +378,33 @@ class ProvisionController extends Controller
     :set kfProvisionOk false;
     :put "-----------------RADIUS secret missing-----------------";
   } else={
-    :local kfRid [/radius find where address=$kfRadiusIp];
-
-    :if ([:len $kfRid] > 0) do={
-      /radius set [:pick $kfRid 0] \
-        address=$kfRadiusIp \
-        secret=$kfRadiusSecret \
-        authentication-port=1812 \
-        accounting-port=1813 \
-        timeout=300ms \
-        src-address=$kfWgIp \
-        service=hotspot,login \
-        comment="KAAFIYE";
-      :put "-----------------RADIUS updated successfully-----------------";
-    } else={
-      /radius add \
-        service=hotspot,login \
-        address=$kfRadiusIp \
-        secret=$kfRadiusSecret \
-        authentication-port=1812 \
-        accounting-port=1813 \
-        timeout=300ms \
-        src-address=$kfWgIp \
-        comment="KAAFIYE";
-      :put "-----------------RADIUS server added successfully-----------------";
+    :foreach oldRadius in=[/radius find] do={
+      /radius remove $oldRadius;
     }
 
+    /radius add \
+      service=hotspot,login \
+      address=$kfRadiusIp \
+      secret=$kfRadiusSecret \
+      authentication-port=1812 \
+      accounting-port=1813 \
+      timeout=3s \
+      src-address=$kfWgIp \
+      require-message-auth=no \
+      comment="KAAFIYE";
+
+    :put "-----------------RADIUS updated successfully-----------------";
+
+    :do { /radius incoming set accept=yes port=3799; } on-error={}
     :do { /ip hotspot profile set [find where name="default"] use-radius=yes radius-accounting=yes; } on-error={}
+
+    :foreach r in=[/ip firewall filter find where comment="Allow RADIUS CoA from server"] do={
+      /ip firewall filter remove $r;
+    }
+
+    /ip firewall filter add chain=input action=accept protocol=udp src-address=$kfRadiusIp dst-port=3799 comment="Allow RADIUS CoA from server";
+
+    :put "-----------------RADIUS CoA configured successfully-----------------";
   }
 } on-error={
   :set kfProvisionOk false;
@@ -294,66 +448,86 @@ class ProvisionController extends Controller
 }
 
 # =====================================================================
+# DNS
+# =====================================================================
+:do {
+  /ip dns set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1;
+
+  :foreach d in=[/ip dns static find where comment="KAAFIYE-HOTSPOT-DNS"] do={
+    /ip dns static remove $d;
+  }
+
+  /ip dns static add name=$kfHotspotDnsName address=$kfHotspotLanIp ttl=5m comment="KAAFIYE-HOTSPOT-DNS";
+
+  :put "-----------------DNS configured successfully-----------------";
+} on-error={
+  :set kfProvisionOk false;
+  :put "-----------------DNS configuration FAILED-----------------";
+}
+
+# =====================================================================
 # HOTSPOT NETWORK / DHCP / SERVER
 # =====================================================================
-:put "-----------------Configuring Hotspot Profile-----------------";
+:put "-----------------Hotspot profile configured successfully-----------------";
+
+# =====================================================================
+# DEVICE LIMIT (LET RADIUS CONTROL)
+# =====================================================================
+:put "-----------------Setting shared-users=10000 (RADIUS control)-----------------";
 
 :do {
-  :if ([:len [/ip address find where address="10.10.0.1/24" interface="bridgeLocal"]] = 0) do={
-    /ip address add address=10.10.0.1/24 interface=bridgeLocal comment="KAAFIYE-HOTSPOT";
-  }
+  /ip hotspot user profile set [find] shared-users=10000;
+  :put "-----------------shared-users set to 10000 successfully-----------------";
+} on-error={
+  :put "-----------------FAILED to set shared-users-----------------";
+}
+
+:do {
+  /ip address add address=$kfHotspotLanCidr interface=$kfLanBridge comment="KAAFIYE-HOTSPOT";
 } on-error={
   :set kfProvisionOk false;
   :put "-----------------Hotspot LAN IP add FAILED-----------------";
 }
 
 :do {
-  :if ([:len [/ip pool find where name="hs-pool"]] = 0) do={
-    /ip pool add name="hs-pool" ranges=10.10.0.2-10.10.0.254;
-  }
+  /ip pool add name=$kfHotspotPoolName ranges=10.10.0.2-10.10.0.254;
 } on-error={
   :set kfProvisionOk false;
   :put "-----------------Hotspot pool add FAILED-----------------";
 }
 
 :do {
-  :if ([:len [/ip dhcp-server network find where address="10.10.0.0/24"]] = 0) do={
-    /ip dhcp-server network add address=10.10.0.0/24 gateway=10.10.0.1 dns-server=8.8.8.8,1.1.1.1;
-  }
+  /ip dhcp-server network add address=$kfHotspotNetwork gateway=$kfHotspotLanIp dns-server=$kfHotspotLanIp domain=$kfHotspotDnsName;
 } on-error={
   :set kfProvisionOk false;
   :put "-----------------DHCP network add FAILED-----------------";
 }
 
 :do {
-  :if ([:len [/ip dhcp-server find where name="hs-dhcp"]] = 0) do={
-    /ip dhcp-server add name="hs-dhcp" interface=bridgeLocal address-pool="hs-pool" lease-time=1h disabled=no;
-  } else={
-    /ip dhcp-server set [find where name="hs-dhcp"] interface=bridgeLocal address-pool="hs-pool" lease-time=1h disabled=no;
-  }
+  /ip dhcp-server add name=$kfHotspotDhcp interface=$kfLanBridge address-pool=$kfHotspotPoolName lease-time=1h disabled=no;
 } on-error={
   :set kfProvisionOk false;
   :put "-----------------DHCP server add FAILED-----------------";
 }
 
 :do {
-  :if ([:len [/ip hotspot profile find where name="hsprof1"]] = 0) do={
+  :if ([:len [/ip hotspot profile find where name=$kfHotspotProfile]] = 0) do={
     /ip hotspot profile add \
-      name="hsprof1" \
-      hotspot-address=10.10.0.1 \
+      name=$kfHotspotProfile \
+      hotspot-address=$kfHotspotLanIp \
       html-directory=hotspot \
-      login-by=cookie,http-chap,http-pap \
+      login-by=http-pap,http-chap,cookie \
       use-radius=yes \
       radius-accounting=yes \
-      dns-name="";
+      dns-name=$kfHotspotDnsName;
   } else={
-    /ip hotspot profile set [find where name="hsprof1"] \
-      hotspot-address=10.10.0.1 \
+    /ip hotspot profile set [find where name=$kfHotspotProfile] \
+      hotspot-address=$kfHotspotLanIp \
       html-directory=hotspot \
-      login-by=cookie,http-chap,http-pap \
+      login-by=http-pap,http-chap,cookie \
       use-radius=yes \
       radius-accounting=yes \
-      dns-name="";
+      dns-name=$kfHotspotDnsName;
   }
   :put "-----------------Hotspot profile configured successfully-----------------";
 } on-error={
@@ -362,20 +536,12 @@ class ProvisionController extends Controller
 }
 
 :do {
-  :if ([:len [/ip hotspot find where name="hotspot1"]] = 0) do={
-    /ip hotspot add \
-      name="hotspot1" \
-      interface=bridgeLocal \
-      address-pool="hs-pool" \
-      profile="hsprof1" \
-      disabled=no;
-  } else={
-    /ip hotspot set [find where name="hotspot1"] \
-      interface=bridgeLocal \
-      address-pool="hs-pool" \
-      profile="hsprof1" \
-      disabled=no;
-  }
+  /ip hotspot add \
+    name=$kfHotspotServer \
+    interface=$kfLanBridge \
+    address-pool=$kfHotspotPoolName \
+    profile=$kfHotspotProfile \
+    disabled=no;
 } on-error={
   :set kfProvisionOk false;
   :put "-----------------Hotspot server configuration FAILED-----------------";
@@ -449,9 +615,16 @@ class ProvisionController extends Controller
 # WALLED GARDEN
 # =====================================================================
 :do {
-  /ip hotspot walled-garden add dst-host="login.kaafiye.online" action=allow comment="KAAFIYE-WG";
+  :foreach wgRule in=[/ip hotspot walled-garden find where comment="KAAFIYE-WG"] do={
+    /ip hotspot walled-garden remove $wgRule;
+  }
+} on-error={}
+
+:do {
+  /ip hotspot walled-garden add dst-host=$kfHotspotDnsName action=allow comment="KAAFIYE-WG";
   /ip hotspot walled-garden add dst-host="app.kaafiye.online" action=allow comment="KAAFIYE-WG";
   /ip hotspot walled-garden add dst-host="kaafiye.online" action=allow comment="KAAFIYE-WG";
+  /ip hotspot walled-garden add dst-host="*.kaafiye.online" action=allow comment="KAAFIYE-WG";
 } on-error={}
 
 :put "-----------------Walled garden rules added successfully-----------------";
@@ -500,11 +673,7 @@ class ProvisionController extends Controller
 :put "-----------------Notifying server (callback)-----------------";
 
 :local kfIdent [/system identity get name];
-:local kfCbUrl ($kfCallbackUrl . "?identity=" . $kfIdent . "&mgmt_ip=" . $kfMgmtIp . "&api_port=" . $kfApiPort);
-
-:if ($kfRouterWgPub != "") do={
-  :set kfCbUrl ($kfCbUrl . "&wg_pub=" . $kfRouterWgPub);
-}
+:local kfCbUrl ($kfCallbackUrl . "?identity=" . $kfIdent . "&mgmt_ip=" . $kfMgmtIp);
 
 :if ($kfWgIp != "") do={
   :set kfCbUrl ($kfCbUrl . "&wg_ip=" . $kfWgIp);
@@ -571,21 +740,30 @@ class ProvisionController extends Controller
 RSC;
 
         return strtr($template, [
-            '{{CALLBACK_URL}}'     => $this->rosEscape($callbackUrl),
-            '{{HEARTBEAT_URL}}'    => $this->rosEscape($heartbeatUrl),
-            '{{API_PORT}}'         => (string) $apiPort,
-            '{{API_USER}}'         => $this->rosEscape($apiUser),
-            '{{API_PASS}}'         => $this->rosEscape($apiPass),
-            '{{TZ}}'               => $this->rosEscape($timezone),
-            '{{WG_ENDPOINT}}'      => $this->rosEscape($wgEndpoint),
-            '{{WG_PORT}}'          => (string) $wgPort,
-            '{{WG_SERVER_PUB}}'    => $this->rosEscape($wgServerPublicKey),
-            '{{WG_ROUTER_ADDRESS}}'=> $this->rosEscape($wgRouterAddress),
-            '{{WG_SERVER_ADDRESS}}'=> $this->rosEscape($wgServerAddress),
-            '{{RADIUS_IP}}'        => $this->rosEscape($radiusIp),
-            '{{RADIUS_SECRET}}'    => $this->rosEscape($radiusSecret),
-            '{{HOTSPOT_BASE}}'     => $this->rosEscape($hotspotBase),
-            '{{SNMP_COMMUNITY}}'   => $this->rosEscape($snmpCommunity),
+            '{{CALLBACK_URL}}'        => $this->rosEscape($callbackUrl),
+            '{{HEARTBEAT_URL}}'       => $this->rosEscape($heartbeatUrl),
+            '{{API_PORT}}'            => (string) $apiPort,
+            '{{API_USER}}'            => $this->rosEscape($apiUser),
+            '{{API_PASS}}'            => $this->rosEscape($apiPass),
+            '{{TZ}}'                  => $this->rosEscape($timezone),
+            '{{WG_ENDPOINT}}'         => $this->rosEscape($wgEndpoint),
+            '{{WG_PORT}}'             => (string) $wgPort,
+            '{{WG_LISTEN_PORT}}'      => (string) $wgListenPort,
+            '{{WG_SERVER_PUB}}'       => $this->rosEscape($wgServerPublicKey),
+            '{{WG_ROUTER_ADDRESS}}'   => $this->rosEscape($wgRouterAddress),
+            '{{WG_SERVER_ADDRESS}}'   => $this->rosEscape($wgServerAddress),
+            '{{RADIUS_IP}}'           => $this->rosEscape($radiusIp),
+            '{{RADIUS_SECRET}}'       => $this->rosEscape($radiusSecret),
+            '{{HOTSPOT_BASE}}'        => $this->rosEscape($hotspotBase),
+            '{{SNMP_COMMUNITY}}'      => $this->rosEscape($snmpCommunity),
+            '{{HOTSPOT_DNS_NAME}}'    => $this->rosEscape($hotspotDnsName),
+            '{{HOTSPOT_LAN_IP}}'      => $this->rosEscape($hotspotLanIp),
+            '{{HOTSPOT_LAN_CIDR}}'    => $this->rosEscape($hotspotLanCidr),
+            '{{HOTSPOT_NETWORK}}'     => $this->rosEscape($hotspotNetwork),
+            '{{HOTSPOT_POOL_NAME}}'   => $this->rosEscape($hotspotPoolName),
+            '{{HOTSPOT_SERVER}}'      => $this->rosEscape($hotspotServer),
+            '{{HOTSPOT_PROFILE}}'     => $this->rosEscape($hotspotProfile),
+            '{{HOTSPOT_DHCP}}'        => $this->rosEscape($hotspotDhcp),
         ]);
     }
 
@@ -630,7 +808,7 @@ RSC;
 <div class="page">
   <div class="card">
     <h1>Kaafiye WiFi</h1>
-    <p class="subtitle">Hotspot Login Page (Router ID: ROUTER_ID)</p>
+    <p class="subtitle">Login to continue browsing</p>
 
     $(if error)
     <div class="alert">$(error)</div>
@@ -922,6 +1100,19 @@ HTML;
 <body>Hotspot XML Error</body>
 </html>
 HTML;
+    }
+
+    private function ensureStableRadiusSecret(Router $router, bool $saveImmediately = true): void
+    {
+        if (!empty($router->radius_secret)) {
+            return;
+        }
+
+        $router->radius_secret = bin2hex(random_bytes(16));
+
+        if ($saveImmediately) {
+            $router->save();
+        }
     }
 
     private function rosEscape(string $value): string

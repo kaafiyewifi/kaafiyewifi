@@ -16,6 +16,11 @@ class ProvisionTokenService
      */
     public function create(Router $router, string $scriptVersion = 'v1', int $minutes = 20): array
     {
+        if (empty($router->radius_secret)) {
+            $router->radius_secret = bin2hex(random_bytes(16));
+            $router->save();
+        }
+
         $plain = $this->makePlainToken();
 
         $row = new RouterProvision();

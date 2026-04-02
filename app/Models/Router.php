@@ -31,6 +31,8 @@ class Router extends Model
         // misc
         'tenant_id',
         'mgmt_host',
+        'wg_ip',
+        'radius_secret',
         'api_port',
         'use_tls',
         'notes',
@@ -82,7 +84,7 @@ class Router extends Model
         }
 
         // Optional: keep name in sync if empty
-        if ((empty($this->attributes['name']) || trim((string)$this->attributes['name']) === '') && $value !== '') {
+        if ((empty($this->attributes['name']) || trim((string) $this->attributes['name']) === '') && $value !== '') {
             $this->attributes['name'] = $value;
         }
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -15,32 +16,40 @@ class DashboardController extends Controller
          * ========================= */
         $usersCount = User::count();
 
-        // USERS PER MONTH
+        $userLabels = [];
+        $userData = [];
+
         $usersByMonth = User::selectRaw('MONTH(created_at) as month, COUNT(*) as total')
+            ->whereYear('created_at', now()->year)
             ->groupBy('month')
             ->orderBy('month')
-            ->get();
+            ->get()
+            ->keyBy('month');
 
-        $userLabels = [];
-        $userData   = [];
-
-        foreach ($usersByMonth as $row) {
-            $userLabels[] = date('M', mktime(0, 0, 0, $row->month, 1));
-            $userData[]   = $row->total;
+        for ($month = 1; $month <= 12; $month++) {
+            $userLabels[] = Carbon::create()->month($month)->format('M');
+            $userData[] = (int) ($usersByMonth[$month]->total ?? 0);
         }
 
         /* =========================
          * 🔐 LOGIN ACTIVITY (LAST 7 DAYS)
          * ========================= */
-        $loginByDay = User::whereNotNull('last_login_at')
-            ->selectRaw('DATE(last_login_at) as date, COUNT(*) as total')
-            ->groupBy('date')
-            ->orderBy('date')
-            ->limit(7)
-            ->get();
+        $loginLabels = [];
+        $loginData = [];
 
-        $loginLabels = $loginByDay->pluck('date');
-        $loginData   = $loginByDay->pluck('total');
+        $loginByDay = User::whereNotNull('last_login_at')
+            ->selectRaw('DATE(last_login_at) as login_date, COUNT(*) as total')
+            ->whereDate('last_login_at', '>=', now()->subDays(6)->toDateString())
+            ->groupBy('login_date')
+            ->orderBy('login_date')
+            ->get()
+            ->keyBy('login_date');
+
+        for ($i = 6; $i >= 0; $i--) {
+            $day = now()->subDays($i)->toDateString();
+            $loginLabels[] = Carbon::parse($day)->format('d M');
+            $loginData[] = (int) ($loginByDay[$day]->total ?? 0);
+        }
 
         /* =========================
          * 🔥 ACTIVE SESSIONS
@@ -60,33 +69,44 @@ class DashboardController extends Controller
             ->get();
 
         /* =========================
-         * 💰 FINANCIAL / PAYMENT STATS (PHASE 2.3)
+         * 💰 FINANCIAL / PAYMENT STATS
          * ========================= */
-        $todayRevenue = Payment::whereDate('created_at', today())
+        $todayRevenue = Payment::query()
             ->where('status', 'paid')
+            ->whereNotNull('paid_at')
+            ->whereDate('paid_at', today())
             ->sum('amount');
 
-        $monthRevenue = Payment::whereYear('created_at', now()->year)
-            ->whereMonth('created_at', now()->month)
+        $monthRevenue = Payment::query()
             ->where('status', 'paid')
+            ->whereNotNull('paid_at')
+            ->whereYear('paid_at', now()->year)
+            ->whereMonth('paid_at', now()->month)
             ->sum('amount');
 
-        $totalRevenue = Payment::where('status', 'paid')->sum('amount');
-
-        // MONTHLY REVENUE CHART
-        $revenueByMonth = Payment::selectRaw('MONTH(created_at) as month, SUM(amount) as total')
-            ->whereYear('created_at', now()->year)
+        $totalRevenue = Payment::query()
             ->where('status', 'paid')
+            ->whereNotNull('paid_at')
+            ->sum('amount');
+
+        /* =========================
+         * 📈 MONTHLY REVENUE CHART
+         * ========================= */
+        $revenueLabels = [];
+        $revenueData = [];
+
+        $revenueByMonth = Payment::selectRaw('MONTH(paid_at) as month, SUM(amount) as total')
+            ->whereYear('paid_at', now()->year)
+            ->where('status', 'paid')
+            ->whereNotNull('paid_at')
             ->groupBy('month')
             ->orderBy('month')
-            ->get();
+            ->get()
+            ->keyBy('month');
 
-        $revenueLabels = [];
-        $revenueData   = [];
-
-        foreach ($revenueByMonth as $row) {
-            $revenueLabels[] = date('M', mktime(0, 0, 0, $row->month, 1));
-            $revenueData[]   = $row->total;
+        for ($month = 1; $month <= 12; $month++) {
+            $revenueLabels[] = Carbon::create()->month($month)->format('M');
+            $revenueData[] = (float) ($revenueByMonth[$month]->total ?? 0);
         }
 
         /* =========================

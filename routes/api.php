@@ -6,7 +6,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 
 // Controllers
-use App\Http\Controllers\Provision\CallbackController;
+use App\Http\Controllers\Provision\ProvisionController;
 use App\Http\Controllers\Api\RouterWireGuardController;
 use App\Http\Controllers\Provision\ProvisionReportController;
 use App\Http\Controllers\Api\RouterHealthController;
@@ -35,19 +35,19 @@ Route::middleware('throttle:router-api')->group(function () {
     Route::get('/health', RouterHealthController::class);
 
     // Provision token callback (POST + GET for RouterOS v7 safe)
-    Route::post('/provision/callback/{token}', [CallbackController::class, 'handle'])
+    Route::post('/provision/callback/{token}', [ProvisionController::class, 'callback'])
         ->where('token', '[A-Za-z0-9\-_]+');
 
-    Route::get('/provision/callback/{token}', [CallbackController::class, 'handle'])
+    Route::get('/provision/callback/{token}', [ProvisionController::class, 'callback'])
         ->where('token', '[A-Za-z0-9\-_]+');
 
     // Legacy callbacks (keep)
-    Route::post('/routers/callback', [CallbackController::class, 'handle']);
-    Route::post('/router/callback', [CallbackController::class, 'handle']);
+    Route::post('/routers/callback', [ProvisionController::class, 'callback']);
+    Route::post('/router/callback', [ProvisionController::class, 'callback']);
 
-    // ❤️ Heartbeat (POST + GET for RouterOS v7 safe)
+    // Heartbeat (POST + GET for RouterOS v7 safe)
     Route::post('/routers/heartbeat', [RouterHeartbeatController::class, 'store']);
-    Route::get('/routers/heartbeat', [RouterHeartbeatController::class, 'store']); // ✅ added
+    Route::get('/routers/heartbeat', [RouterHeartbeatController::class, 'store']);
 
     // WireGuard
     Route::post('/router/wg-register', [RouterWireGuardController::class, 'register']);

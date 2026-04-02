@@ -14,6 +14,12 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\SubscriptionController;
+use App\Http\Controllers\Admin\CustomerSubscriptionController;
+use App\Http\Controllers\Admin\Customers\CustomerSessionController;
+use App\Http\Controllers\Admin\InvoiceController;
+use App\Http\Controllers\Admin\AuditLogController;
 
 // Routers (Admin)
 use App\Http\Controllers\Admin\RouterController;
@@ -56,7 +62,7 @@ RateLimiter::for('provision', function (Request $request) {
 // ✅ Wizard status polling limiter (PUBLIC JSON)
 RateLimiter::for('wizard-status', function (Request $request) {
     return [
-        Limit::perMinute(120)->by($request->ip()),       // polling 3s -> ~20/min, 120/min is safe
+        Limit::perMinute(120)->by($request->ip()),
         Limit::perMinute(30)->by('wiz:status:global'),
     ];
 });
@@ -81,8 +87,8 @@ Route::get('/provision-test', function () {
  * MikroTik: /tool fetch url="https://app.kaafiye.online/provision/{token}"
  *
  * NOTE:
- * - Callback endpoint waa POST /api/routers/callback (routes/api.php)
- * - Heartbeat endpoint waa POST /api/routers/heartbeat (routes/api.php)
+ * - Callback endpoint waa GET|POST /api/provision/callback/{token} (routes/api.php)
+ * - Heartbeat endpoint waa GET|POST /api/routers/heartbeat (routes/api.php)
  */
 Route::middleware('throttle:provision')
     ->get('/provision/{token}', [ProvisionController::class, 'script'])
@@ -104,7 +110,7 @@ Route::middleware('throttle:wizard-status')
 |--------------------------------------------------------------------------
 */
 Route::prefix('hotspot-files')->group(function () {
-    Route::get('{router}/login.html',  [HotspotFilesController::class, 'login'])
+    Route::get('{router}/login.html', [HotspotFilesController::class, 'login'])
         ->whereNumber('router')
         ->name('hotspot.files.login');
 
@@ -112,7 +118,7 @@ Route::prefix('hotspot-files')->group(function () {
         ->whereNumber('router')
         ->name('hotspot.files.alogin');
 
-    Route::get('{router}/error.html',  [HotspotFilesController::class, 'error'])
+    Route::get('{router}/error.html', [HotspotFilesController::class, 'error'])
         ->whereNumber('router')
         ->name('hotspot.files.error');
 
@@ -151,9 +157,9 @@ Route::middleware(['auth'])->group(function () {
     })->name('dashboard');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | Routers Dashboard UX (OPTIONAL)
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     if (class_exists(\App\Http\Controllers\Routers\RouterDashboardController::class)) {
         Route::prefix('routers')
@@ -174,22 +180,81 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | Admin Area
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::prefix('admin')
         ->name('admin.')
         ->middleware(['role:super_admin|admin|agent'])
         ->group(function () {
 
+            Route::post('/devices/disconnect', [CustomerController::class, 'disconnectDevice'])
+                ->name('devices.disconnect');
+
             Route::get('/home', [DashboardController::class, 'index'])->name('home');
+
+            // ✅ Invoices
+            Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+            Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+
+            // ✅ Audit Logs
+            Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit.index');
 
             Route::resource('locations', LocationController::class);
 
             Route::resource('users', UserController::class)
                 ->except(['show'])
                 ->middleware('permission:manage users');
+
+            Route::resource('customers', CustomerController::class);
+
+            Route::put(
+                '/customers/{customer}/password',
+                [CustomerController::class, 'updatePassword']
+            )->name('customers.password.update');
+
+            Route::post(
+                '/customers/{customer}/clear-stale-sessions',
+                [CustomerSessionController::class, 'clearStaleSessions']
+            )->name('customers.clear-stale-sessions');
+
+            Route::resource('subscriptions', SubscriptionController::class);
+
+            Route::get(
+                '/customers/{customer}/subscribe',
+                [CustomerSubscriptionController::class, 'create']
+            )->name('customers.subscribe');
+
+            Route::post(
+                '/customers/{customer}/subscribe',
+                [CustomerSubscriptionController::class, 'store']
+            )->name('customers.subscribe.store');
+
+            Route::get(
+                '/subs/{subscription}/extend',
+                [CustomerSubscriptionController::class, 'extend']
+            )->name('subs.extend');
+
+            Route::post(
+                '/subs/{subscription}/extend',
+                [CustomerSubscriptionController::class, 'extendPost']
+            )->name('subs.extend.post');
+
+            Route::post(
+                '/subs/{subscription}/pause',
+                [CustomerSubscriptionController::class, 'pause']
+            )->name('subs.pause');
+
+            Route::post(
+                '/subs/{subscription}/resume',
+                [CustomerSubscriptionController::class, 'resume']
+            )->name('subs.resume');
+
+            Route::post(
+                '/subs/{subscription}/cancel',
+                [CustomerSubscriptionController::class, 'cancel']
+            )->name('subs.cancel');
 
             /*
             |------------------------------------------------------------------
@@ -319,7 +384,6 @@ Route::middleware(['auth'])->group(function () {
             // UI placeholders
             Route::view('hotspots', 'admin/hotspots/index')->name('hotspots.index');
             Route::view('reports', 'admin/reports/index')->name('reports.index');
-            Route::view('audit', 'admin/audit/index')->name('audit.index');
         });
 });
 
