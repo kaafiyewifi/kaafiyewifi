@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ActivityLog;
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -11,7 +11,7 @@ class AuditLogController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ActivityLog::query()
+        $query = AuditLog::query()
             ->with('user')
             ->latest();
 
@@ -48,7 +48,7 @@ class AuditLogController extends Controller
 
         $logs = $query->paginate(20)->withQueryString();
 
-        $actions = ActivityLog::select('action')
+        $actions = AuditLog::select('action')
             ->distinct()
             ->orderBy('action')
             ->pluck('action');

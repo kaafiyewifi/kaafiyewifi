@@ -26,7 +26,7 @@ class Kernel extends ConsoleKernel
         $schedule->call(function (): void {
             Router::query()
                 ->whereNotNull('mgmt_host')
-                ->whereIn('status', ['connected', 'offline', 'provisioning'])
+                ->whereIn('status', ['connected', 'offline', 'provisioning', 'provisioned'])
                 ->pluck('id')
                 ->each(fn ($routerId) => PollRouterStatusJob::dispatch((int) $routerId));
         })
@@ -46,7 +46,7 @@ class Kernel extends ConsoleKernel
         $schedule->call(function (): void {
             Router::query()
                 ->whereNotNull('mgmt_host')
-                ->whereIn('status', ['connected', 'offline', 'provisioning'])
+                ->whereIn('status', ['connected', 'offline', 'provisioning', 'provisioned'])
                 ->pluck('id')
                 ->each(fn ($routerId) => CollectRouterMetricsJob::dispatch((int) $routerId));
         })

@@ -13,14 +13,8 @@ use Carbon\Carbon;
 
 class CheckSubscriptions extends Command
 {
-    /**
-     * Command name
-     */
     protected $signature = 'subscriptions:check';
 
-    /**
-     * Command description
-     */
     protected $description = 'Check and expire subscriptions and disable router users';
 
     private function getActiveUserIp(string $username): ?string
@@ -33,9 +27,6 @@ class CheckSubscriptions extends Command
             ->value('framedipaddress');
     }
 
-    /**
-     * Execute the console command
-     */
     public function handle(): int
     {
         $now = Carbon::now();
@@ -56,32 +47,51 @@ class CheckSubscriptions extends Command
         }
 
         foreach ($expiredSubs as $sub) {
-            $customer = $sub->customer;
-            $username = $customer?->username;
 
-            if ($username) {
-                try {
-                    $radiusUserService->setUserInactive($username);
-                    $radiusUserService->clearUserSpeed($username);
-                    $radiusUserService->setUserDeviceLimit($username, 1);
+            DB::beginTransaction();
+
+            try {
+                $customer = $sub->customer;
+
+                if (!$customer) {
+                    $sub->update(['status' => 'expired']);
+                    DB::commit();
+                    continue;
+                }
+
+                $username = $customer->username;
+
+                if ($username) {
 
                     $ip = $this->getActiveUserIp($username);
 
-                    Log::info('EXPIRE DISCONNECT', [
+                    Log::info('EXPIRE START', [
                         'subscription_id' => $sub->id,
-                        'customer_id' => $customer?->id,
+                        'customer_id' => $customer->id,
                         'username' => $username,
                         'ip' => $ip,
                     ]);
 
+                    // 🔥 Disable user
+                    $radiusUserService->setUserInactive($username);
+
+                    // 🔥 Clear speed
+                    $radiusUserService->clearUserSpeed($username);
+
+                    // 🔥 Reset device limit
+                    $radiusUserService->setUserDeviceLimit($username, 1);
+
+                    // 🔥 Disconnect if online
                     if ($ip) {
                         $radiusCoaService->disconnect($username, $ip);
                     } else {
                         $radiusCoaService->disconnect($username);
                     }
 
+                    // 🔥 Enforce device limit
                     $radiusSessionService->enforceDeviceLimit($username, 1);
 
+                    // 🔥 Force close sessions in DB
                     DB::connection('radius')
                         ->table('radacct')
                         ->where('username', $username)
@@ -92,23 +102,30 @@ class CheckSubscriptions extends Command
                         ]);
 
                     $this->info("📡 Router user {$username} disabled");
-                } catch (\Throwable $e) {
-                    Log::error('Subscription expire disconnect failed', [
-                        'subscription_id' => $sub->id,
-                        'customer_id' => $customer?->id,
-                        'username' => $username,
-                        'error' => $e->getMessage(),
-                    ]);
-
-                    $this->error("❌ Router disable failed for {$username}: {$e->getMessage()}");
                 }
+
+                // 🔥 Mark expired
+                $sub->update([
+                    'status' => 'expired',
+                ]);
+
+                DB::commit();
+
+                $this->info("⛔ Subscription ID {$sub->id} expired");
+
+            } catch (\Throwable $e) {
+
+                DB::rollBack();
+
+                Log::error('Subscription expire FAILED', [
+                    'subscription_id' => $sub->id,
+                    'customer_id' => $sub->customer?->id,
+                    'username' => $sub->customer?->username,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $this->error("❌ Failed for sub {$sub->id}: {$e->getMessage()}");
             }
-
-            $sub->update([
-                'status' => 'expired',
-            ]);
-
-            $this->info("⛔ Subscription ID {$sub->id} expired");
         }
 
         $this->info('🎯 Subscription check completed successfully');

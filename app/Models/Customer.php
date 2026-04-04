@@ -25,10 +25,16 @@ class Customer extends Model
         'upload_unit',
     ];
 
+    protected $hidden = [
+        'password',
+    ];
+
     protected $casts = [
         'speed_override_enabled' => 'boolean',
         'download_speed' => 'integer',
+        'download_unit' => 'string',
         'upload_speed' => 'integer',
+        'upload_unit' => 'string',
     ];
 
     public function location()

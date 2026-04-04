@@ -157,6 +157,8 @@ class ProvisionController extends Controller
         $hotspotServer   = 'hotspot1';
         $hotspotProfile  = 'hsprof1';
         $hotspotDhcp     = 'hs-dhcp';
+        $pppoeProfile    = (string) env('PPPOE_PROFILE_NAME', 'pppoe-radius');
+        $pppoeService    = (string) env('PPPOE_SERVICE_NAME', 'kaafiye-pppoe');
 
         $template = <<<'RSC'
 # ================================
@@ -193,6 +195,8 @@ class ProvisionController extends Controller
 :global kfHotspotServer "{{HOTSPOT_SERVER}}";
 :global kfHotspotProfile "{{HOTSPOT_PROFILE}}";
 :global kfHotspotDhcp "{{HOTSPOT_DHCP}}";
+:global kfPppoeProfile "{{PPPOE_PROFILE}}";
+:global kfPppoeService "{{PPPOE_SERVICE}}";
 
 :local kfProvisionOk true;
 :local kfLanBridge "";
@@ -383,7 +387,7 @@ class ProvisionController extends Controller
     }
 
     /radius add \
-      service=hotspot,login \
+      service=hotspot,login,ppp \
       address=$kfRadiusIp \
       secret=$kfRadiusSecret \
       authentication-port=1812 \
@@ -397,6 +401,7 @@ class ProvisionController extends Controller
 
     :do { /radius incoming set accept=yes port=3799; } on-error={}
     :do { /ip hotspot profile set [find where name="default"] use-radius=yes radius-accounting=yes; } on-error={}
+    :do { /ppp aaa set use-radius=yes; } on-error={}
 
     :foreach r in=[/ip firewall filter find where comment="Allow RADIUS CoA from server"] do={
       /ip firewall filter remove $r;
@@ -409,6 +414,52 @@ class ProvisionController extends Controller
 } on-error={
   :set kfProvisionOk false;
   :put "-----------------RADIUS configuration FAILED-----------------";
+}
+
+# =====================================================================
+# PPPOE SERVER
+# =====================================================================
+:put "-----------------Configuring PPPoE-----------------";
+
+:do {
+  :if ([:len [/ip pool find where name="pppoe-pool"]] = 0) do={
+    /ip pool add name="pppoe-pool" ranges=10.10.10.2-10.10.10.254;
+  }
+
+  :local pId [/ppp profile find where name=$kfPppoeProfile];
+
+  :if ([:len $pId] = 0) do={
+    /ppp profile add name=$kfPppoeProfile change-tcp-mss=yes local-address=10.10.10.1 remote-address=pppoe-pool comment="KAAFIYE";
+  } else={
+    /ppp profile set $pId change-tcp-mss=yes local-address=10.10.10.1 remote-address=pppoe-pool comment="KAAFIYE";
+  }
+
+  :local srvId [/interface pppoe-server server find where interface=$kfLanBridge and service-name=$kfPppoeService];
+
+  :if ([:len $srvId] = 0) do={
+    /interface pppoe-server server add \
+      interface=$kfLanBridge \
+      service-name=$kfPppoeService \
+      default-profile=$kfPppoeProfile \
+      one-session-per-host=yes \
+      authentication=pap \
+      disabled=no \
+      comment="KAAFIYE";
+  } else={
+    /interface pppoe-server server set $srvId \
+      interface=$kfLanBridge \
+      service-name=$kfPppoeService \
+      default-profile=$kfPppoeProfile \
+      one-session-per-host=yes \
+      authentication=pap \
+      disabled=no \
+      comment="KAAFIYE";
+  }
+
+  :put "-----------------PPPoE configured successfully-----------------";
+} on-error={
+  :set kfProvisionOk false;
+  :put "-----------------PPPoE configuration FAILED-----------------";
 }
 
 # =====================================================================
@@ -764,6 +815,8 @@ RSC;
             '{{HOTSPOT_SERVER}}'      => $this->rosEscape($hotspotServer),
             '{{HOTSPOT_PROFILE}}'     => $this->rosEscape($hotspotProfile),
             '{{HOTSPOT_DHCP}}'        => $this->rosEscape($hotspotDhcp),
+            '{{PPPOE_PROFILE}}'       => $this->rosEscape($pppoeProfile),
+            '{{PPPOE_SERVICE}}'       => $this->rosEscape($pppoeService),
         ]);
     }
 

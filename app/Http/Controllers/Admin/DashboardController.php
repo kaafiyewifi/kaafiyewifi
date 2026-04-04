@@ -13,7 +13,8 @@ class DashboardController extends Controller
     {
         $stats = [
             'total_customers' => $this->getTotalCustomers(),
-            'total_active_customers' => $this->getTotalActiveCustomers(),
+            'total_hotspot_customers' => $this->getTotalHotspotCustomers(),
+            'total_pppoe_customers' => $this->getTotalPppoeCustomers(),
             'online_users' => $this->getOnlineUsers(),
             'today_sales' => $this->getTodaySales(),
             'monthly_sales' => $this->getMonthlySales(),
@@ -28,20 +29,45 @@ class DashboardController extends Controller
 
     private function getTotalCustomers(): int
     {
-        return Schema::hasTable('customers')
-            ? (int) DB::table('customers')->count()
-            : 0;
+        if (!Schema::hasTable('customers')) return 0;
+
+        $query = DB::table('customers');
+
+        if (!$this->isSuperAdmin()) {
+            $query->whereIn('location_id', $this->getAssignedLocationIds());
+        }
+
+        return (int) $query->count();
     }
 
-    private function getTotalActiveCustomers(): int
+    private function getTotalHotspotCustomers(): int
     {
-        if (!Schema::hasTable('customers') || !Schema::hasColumn('customers', 'status')) {
+        if (!Schema::hasTable('customers') || !Schema::hasColumn('customers', 'type')) {
             return 0;
         }
 
-        return (int) DB::table('customers')
-            ->where('status', 'active')
-            ->count();
+        $query = DB::table('customers')->where('type', 'hotspot');
+
+        if (!$this->isSuperAdmin()) {
+            $query->whereIn('location_id', $this->getAssignedLocationIds());
+        }
+
+        return (int) $query->count();
+    }
+
+    private function getTotalPppoeCustomers(): int
+    {
+        if (!Schema::hasTable('customers') || !Schema::hasColumn('customers', 'type')) {
+            return 0;
+        }
+
+        $query = DB::table('customers')->where('type', 'pppoe');
+
+        if (!$this->isSuperAdmin()) {
+            $query->whereIn('location_id', $this->getAssignedLocationIds());
+        }
+
+        return (int) $query->count();
     }
 
     private function getOnlineUsers(): int
@@ -165,23 +191,10 @@ class DashboardController extends Controller
             ->limit(100)
             ->get()
             ->groupBy('router_id')
-            ->map(function ($items) {
-                return $items->first();
-            })
+            ->map(fn ($items) => $items->first())
             ->values();
 
-        if ($rows->isEmpty()) {
-            return $default;
-        }
-
-        $routerNames = [];
-        if (Schema::hasTable('routers')) {
-            $routerNames = DB::table('routers')
-                ->select('id', 'name', 'identity')
-                ->get()
-                ->keyBy('id')
-                ->toArray();
-        }
+        if ($rows->isEmpty()) return $default;
 
         $labels = [];
         $cpu = [];
@@ -189,44 +202,18 @@ class DashboardController extends Controller
         $storage = [];
 
         foreach ($rows as $index => $row) {
-            if (count($labels) >= 5) {
-                break;
-            }
+            if (count($labels) >= 5) break;
 
-            $routerInfo = $routerNames[$row->router_id] ?? null;
+            $labels[] = 'R' . ($index + 1);
+            $cpu[] = round((float) ($row->cpu_load ?? 0), 2);
 
-            $labels[] = $routerInfo
-                ? ($routerInfo->name ?: $routerInfo->identity ?: 'R' . ($index + 1))
-                : 'R' . ($index + 1);
-
-            $cpu[] = isset($row->cpu_load)
-                ? round((float) $row->cpu_load, 2)
+            $ram[] = !empty($row->total_memory)
+                ? round((($row->total_memory - ($row->free_memory ?? 0)) / $row->total_memory) * 100, 2)
                 : 0;
 
-            if (!empty($row->total_memory) && (int) $row->total_memory > 0) {
-                $ram[] = round(
-                    (((int) $row->total_memory - (int) ($row->free_memory ?? 0)) / (int) $row->total_memory) * 100,
-                    2
-                );
-            } else {
-                $ram[] = 0;
-            }
-
-            if (!empty($row->total_hdd_space) && (int) $row->total_hdd_space > 0) {
-                $storage[] = round(
-                    (((int) $row->total_hdd_space - (int) ($row->free_hdd_space ?? 0)) / (int) $row->total_hdd_space) * 100,
-                    2
-                );
-            } else {
-                $storage[] = 0;
-            }
-        }
-
-        while (count($labels) < 5) {
-            $labels[] = 'R' . (count($labels) + 1);
-            $cpu[] = 0;
-            $ram[] = 0;
-            $storage[] = 0;
+            $storage[] = !empty($row->total_hdd_space)
+                ? round((($row->total_hdd_space - ($row->free_hdd_space ?? 0)) / $row->total_hdd_space) * 100, 2)
+                : 0;
         }
 
         return [
@@ -248,9 +235,7 @@ class DashboardController extends Controller
 
     private function formatSeconds(int $seconds): string
     {
-        if ($seconds <= 0) {
-            return '-';
-        }
+        if ($seconds <= 0) return '-';
 
         $h = intdiv($seconds, 3600);
         $m = intdiv($seconds % 3600, 60);
@@ -260,14 +245,27 @@ class DashboardController extends Controller
 
     private function formatBytes(int $bytes): string
     {
-        if ($bytes <= 0) {
-            return '0 B';
-        }
+        if ($bytes <= 0) return '0 B';
 
         $units = ['B', 'KB', 'MB', 'GB'];
-        $i = (int) floor(log($bytes, 1024));
-        $i = min($i, count($units) - 1);
+        $i = min((int) floor(log($bytes, 1024)), count($units) - 1);
 
         return round($bytes / (1024 ** $i), 2) . ' ' . $units[$i];
+    }
+
+    private function isSuperAdmin(): bool
+    {
+        return auth()->check() && method_exists(auth()->user(), 'hasRole') && auth()->user()->hasRole('super_admin');
+    }
+
+    private function getAssignedLocationIds()
+    {
+        $user = auth()->user();
+
+        if (!$user || !method_exists($user, 'locations')) {
+            return collect();
+        }
+
+        return $user->locations()->pluck('locations.id');
     }
 }

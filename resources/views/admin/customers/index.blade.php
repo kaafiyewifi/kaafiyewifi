@@ -1,5 +1,9 @@
-<x-admin-layout>
+@extends('layouts.admin')
 
+@section('title', 'Customers')
+@section('page_title', 'Customers')
+
+@section('content')
 @php
     $perPage = (int) request('per_page', method_exists($customers, 'perPage') ? $customers->perPage() : 10);
     $allowedPerPage = [10, 50, 100, 500];
@@ -9,18 +13,16 @@
     }
 @endphp
 
-<div class="min-h-screen bg-slate-50 py-6 dark:bg-slate-950">
+<div class="space-y-6">
     <div
         x-data="{
             showCreate: false,
             showEdit: false,
             editCustomer: null
         }"
-        class="mx-auto flex w-full max-w-7xl flex-col px-4 sm:px-6 lg:px-8"
     >
-        {{-- HEADER --}}
         <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="text-center sm:text-left">
+            <div>
                 <h1 class="text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-100">
                     Customers
                 </h1>
@@ -40,19 +42,17 @@
                 <button
                     type="button"
                     @click="showCreate = true"
-                    class="inline-flex items-center justify-center rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600"
+                    class="inline-flex items-center justify-center rounded-xl bg-[#ff5437] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#e94b32]"
                 >
                     + Create Customer
                 </button>
             </div>
         </div>
 
-        {{-- CARD --}}
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            {{-- CARD HEADER / FILTERS --}}
-            <div class="border-b border-slate-200 p-4 dark:border-slate-800">
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div class="border-b border-slate-200 p-5 dark:border-slate-800">
                 <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                    <div class="text-center xl:text-left">
+                    <div>
                         <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">
                             Customers List
                         </h2>
@@ -62,7 +62,7 @@
                     </div>
 
                     <form method="GET" class="w-full xl:w-auto">
-                        <div class="flex flex-col items-stretch justify-center gap-3 sm:flex-row xl:justify-end">
+                        <div class="flex flex-col items-stretch gap-3 sm:flex-row xl:justify-end">
                             <div class="relative w-full sm:w-80">
                                 <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 dark:text-slate-500">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -75,7 +75,7 @@
                                     name="q"
                                     value="{{ request('q') }}"
                                     placeholder="Search customer..."
-                                    class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-orange-900/30"
+                                    class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#ff5437] focus:ring-2 focus:ring-[#ff5437]/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                                 >
                             </div>
 
@@ -94,60 +94,61 @@
                 </div>
             </div>
 
-            {{-- FIXED HEIGHT TABLE AREA --}}
-            <div class="h-[70vh] min-h-[520px] max-h-[820px]">
-                <div class="h-full overflow-auto">
-                    <div class="min-w-full overflow-x-auto">
+            <div class="p-5">
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <div class="max-h-[520px] overflow-auto rounded-2xl">
                         <table class="min-w-[980px] w-full text-sm">
-                            <thead class="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800">
-                                <tr class="text-left text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                    <th class="px-6 py-4 whitespace-nowrap">ID</th>
-                                    <th class="px-6 py-4 whitespace-nowrap">Name</th>
-                                    <th class="px-6 py-4 whitespace-nowrap">Phone</th>
-                                    <th class="px-6 py-4 whitespace-nowrap">Type</th>
-                                    <th class="px-6 py-4 whitespace-nowrap">Device</th>
-                                    <th class="px-6 py-4 whitespace-nowrap">Status</th>
-                                    <th class="px-6 py-4 text-center whitespace-nowrap">Actions</th>
+                            <thead class="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
+                                <tr class="text-left text-slate-600 dark:text-slate-300">
+                                    <th class="px-4 py-3 whitespace-nowrap">ID</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">Name</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">Phone</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">Type</th>
+                                    <th class="px-4 py-3 text-center whitespace-nowrap">Device</th>
+                                    <th class="px-4 py-3 text-center whitespace-nowrap">Status</th>
+                                    <th class="px-4 py-3 text-center whitespace-nowrap">Action</th>
                                 </tr>
                             </thead>
 
                             <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
                                 @forelse($customers as $customer)
-                                    <tr class="align-middle text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60">
-                                        <td class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                                        <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                                             #{{ $customer->id }}
                                         </td>
 
-                                        <td class="px-6 py-4 font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap">
+                                        <td class="px-4 py-3 text-slate-900 dark:text-white whitespace-nowrap">
                                             {{ $customer->full_name ?? $customer->name }}
                                         </td>
 
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="px-4 py-3 text-slate-900 dark:text-white whitespace-nowrap">
                                             {{ $customer->phone }}
                                         </td>
 
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="px-4 py-3 text-slate-900 dark:text-white whitespace-nowrap">
                                             {{ ucfirst($customer->type ?? '-') }}
                                         </td>
 
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="px-4 py-3 text-center text-slate-900 dark:text-white whitespace-nowrap">
                                             {{ $customer->device_limit ?? 1 }}
                                         </td>
 
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="px-4 py-3 text-center whitespace-nowrap">
                                             <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium
                                                 {{ $customer->status === 'active'
                                                     ? 'bg-green-100 text-green-700 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
-                                                    : 'bg-red-100 text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800' }}">
+                                                    : ($customer->status === 'inactive'
+                                                        ? 'bg-yellow-100 text-yellow-700 ring-1 ring-inset ring-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:ring-yellow-800'
+                                                        : 'bg-red-100 text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800') }}">
                                                 {{ ucfirst($customer->status) }}
                                             </span>
                                         </td>
 
-                                        <td class="px-6 py-4">
-                                            <div class="flex items-center justify-center gap-2">
+                                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                                            <div class="inline-flex items-center gap-2">
                                                 <a
                                                     href="{{ route('admin.customers.show', $customer) }}"
-                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 transition hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 transition hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
                                                     title="View"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -159,7 +160,7 @@
                                                 <button
                                                     type="button"
                                                     @click='showEdit = true; editCustomer = @json($customer)'
-                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 text-orange-500 transition hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"
+                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 text-orange-500 transition hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/30"
                                                     title="Edit"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -172,7 +173,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="py-16 text-center text-slate-400 dark:text-slate-500">
+                                        <td colspan="7" class="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
                                             No customers found
                                         </td>
                                     </tr>
@@ -183,8 +184,7 @@
                 </div>
             </div>
 
-            {{-- CARD FOOTER --}}
-            <div class="border-t border-slate-200 px-4 py-4 dark:border-slate-800">
+            <div class="border-t border-slate-200 px-5 py-4 dark:border-slate-800">
                 <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <form method="GET" class="flex justify-center md:justify-start">
                         @if(request()->filled('q'))
@@ -194,7 +194,7 @@
                         <select
                             name="per_page"
                             onchange="this.form.submit()"
-                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-orange-900/30 sm:w-40"
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#ff5437] focus:ring-2 focus:ring-[#ff5437]/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 sm:w-40"
                         >
                             @foreach($allowedPerPage as $size)
                                 <option value="{{ $size }}" {{ $perPage === $size ? 'selected' : '' }}>
@@ -209,19 +209,10 @@
                     </div>
                 </div>
             </div>
-
-            {{-- MOBILE SCROLL HINT --}}
-            <div class="border-t border-slate-200 px-4 py-3 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400 sm:hidden">
-                Swipe left/right to view full table
-            </div>
         </div>
 
-        {{-- CREATE MODAL --}}
         @include('admin.customers.modal-create')
-
-        {{-- EDIT MODAL --}}
         @include('admin.customers.modal-edit')
     </div>
 </div>
-
-</x-admin-layout>
+@endsection

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Customer;
 use App\Models\Location;
 use App\Models\Subscription;
@@ -21,6 +22,10 @@ class CustomerController extends Controller
     {
         $query = Customer::query()->with('location');
 
+        if (!$this->isSuperAdmin()) {
+            $query->whereIn('location_id', $this->getAssignedLocationIds());
+        }
+
         if ($request->filled('q')) {
             $q = $request->q;
             $query->where(function ($sub) use ($q) {
@@ -35,17 +40,23 @@ class CustomerController extends Controller
 
         return view('admin.customers.index', [
             'customers' => $customers,
-            'locations' => Location::orderBy('name')->get(),
+            'locations' => $this->getAllowedLocations(),
         ]);
     }
 
     public function store(Request $request)
     {
+        $locationIds = $this->getAssignedLocationIds();
+
         $data = $request->validate([
             'type'                   => 'required|in:hotspot,pppoe',
             'full_name'              => 'required|string|max:255',
             'phone'                  => 'required|string|max:50|unique:customers,phone',
-            'location_id'            => 'nullable|exists:locations,id',
+            'location_id'            => [
+                'nullable',
+                'exists:locations,id',
+                Rule::when(!$this->isSuperAdmin(), ['in:' . ($locationIds->count() ? $locationIds->implode(',') : '0')]),
+            ],
             'device_limit'           => 'nullable|integer|min:1',
             'status'                 => 'required|in:active,inactive,suspended',
             'speed_override_enabled' => 'nullable|boolean',
@@ -62,61 +73,100 @@ class CustomerController extends Controller
 
         Log::info('CUSTOMER STORE HIT', ['phone' => $phone]);
 
-        $customer = Customer::create([
-            'location_id'            => $data['location_id'] ?? null,
-            'type'                   => $data['type'],
-            'full_name'              => $data['full_name'],
-            'phone'                  => $phone,
-            'username'               => $phone,
-            'password'               => Hash::make($defaultPassword),
-            'device_limit'           => $deviceLimit,
-            'status'                 => $data['status'],
-            'speed_override_enabled' => $speedOverrideEnabled,
-            'download_speed'         => $speedOverrideEnabled ? ($request->input('download_speed') ?: null) : null,
-            'download_unit'          => $speedOverrideEnabled ? ($request->input('download_unit', 'Mbps')) : null,
-            'upload_speed'           => $speedOverrideEnabled ? ($request->input('upload_speed') ?: null) : null,
-            'upload_unit'            => $speedOverrideEnabled ? ($request->input('upload_unit', 'Mbps')) : null,
-        ]);
+        DB::beginTransaction();
 
-        $customer->refresh();
-
-        $radius = app(RadiusUserService::class);
-
-        $radius->createOrUpdateUser($phone, $defaultPassword);
-        $radius->setUserDeviceLimit($phone, $deviceLimit);
-
-        $speed = $radius->resolveEffectiveSpeed($customer);
-
-        if ($speed) {
-            $radius->setUserSpeed(
-                $phone,
-                $speed['download_speed'],
-                $speed['download_unit'],
-                $speed['upload_speed'],
-                $speed['upload_unit']
-            );
-        }
-
-        app(RadiusSessionService::class)->enforceDeviceLimit($phone, $deviceLimit);
-
-        if ($data['status'] === 'active') {
-            $radius->setUserActive($phone);
-        } else {
-            $radius->setUserInactive($phone);
-        }
-
-        Log::info('RADIUS USER CREATED', ['username' => $phone]);
-
-        return redirect()
-            ->route('admin.customers.index')
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Customer waa la diiwaan geliyay',
+        try {
+            $customer = Customer::create([
+                'location_id'            => $data['location_id'] ?? null,
+                'type'                   => $data['type'],
+                'full_name'              => $data['full_name'],
+                'phone'                  => $phone,
+                'username'               => $phone,
+                'password'               => Hash::make($defaultPassword),
+                'device_limit'           => $deviceLimit,
+                'status'                 => $data['status'],
+                'speed_override_enabled' => $speedOverrideEnabled,
+                'download_speed'         => $speedOverrideEnabled ? ($request->input('download_speed') ?: null) : null,
+                'download_unit'          => $speedOverrideEnabled ? ($request->input('download_unit', 'Mbps')) : null,
+                'upload_speed'           => $speedOverrideEnabled ? ($request->input('upload_speed') ?: null) : null,
+                'upload_unit'            => $speedOverrideEnabled ? ($request->input('upload_unit', 'Mbps')) : null,
             ]);
+
+            $customer->refresh();
+
+            $radius = app(RadiusUserService::class);
+
+            $radius->createOrUpdateUser($phone, $defaultPassword, $data['type']);
+            $radius->setUserDeviceLimit($phone, $deviceLimit);
+
+            $speed = $radius->resolveEffectiveSpeed($customer);
+
+            if ($speed) {
+                $radius->setUserSpeed(
+                    $phone,
+                    $speed['download_speed'],
+                    $speed['download_unit'],
+                    $speed['upload_speed'],
+                    $speed['upload_unit'],
+                    $data['type']
+                );
+            } else {
+                $radius->clearUserSpeed($phone);
+            }
+
+            app(RadiusSessionService::class)->enforceDeviceLimit($phone, $deviceLimit);
+
+            if ($data['status'] === 'active') {
+                $radius->setUserActive($phone, $data['type']);
+            } else {
+                $radius->setUserInactive($phone);
+            }
+
+            Log::info('RADIUS USER CREATED', ['username' => $phone]);
+
+            $this->writeAuditLog(
+                $request,
+                'customer.created',
+                $customer,
+                'Customer created: ' . $customer->full_name,
+                [
+                    'type' => $customer->type,
+                    'phone' => $customer->phone,
+                    'username' => $customer->username,
+                    'status' => $customer->status,
+                    'device_limit' => $customer->device_limit,
+                ]
+            );
+
+            DB::commit();
+
+            return redirect()
+                ->route('admin.customers.index')
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => 'Customer waa la diiwaan geliyay',
+                ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error('CUSTOMER STORE FAILED', [
+                'phone' => $phone,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()
+                ->withInput()
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Customer lama diiwaan gelin: ' . $e->getMessage(),
+                ]);
+        }
     }
 
     public function show(Customer $customer)
     {
+        $this->authorizeCustomerAccess($customer);
+
         $customer->load(['location', 'subscriptions.plan']);
 
         $subscriptions = $customer->subscriptions()
@@ -142,14 +192,20 @@ class CustomerController extends Controller
 
     public function edit(Customer $customer)
     {
+        $this->authorizeCustomerAccess($customer);
+
         return view('admin.customers.edit', [
             'customer'  => $customer,
-            'locations' => Location::orderBy('name')->get(),
+            'locations' => $this->getAllowedLocations(),
         ]);
     }
 
     public function update(Request $request, Customer $customer)
     {
+        $this->authorizeCustomerAccess($customer);
+
+        $locationIds = $this->getAssignedLocationIds();
+
         $data = $request->validate([
             'type'                   => 'required|in:hotspot,pppoe',
             'full_name'              => 'required|string|max:255',
@@ -159,7 +215,11 @@ class CustomerController extends Controller
                 'max:50',
                 Rule::unique('customers', 'phone')->ignore($customer->id),
             ],
-            'location_id'            => 'nullable|exists:locations,id',
+            'location_id'            => [
+                'nullable',
+                'exists:locations,id',
+                Rule::when(!$this->isSuperAdmin(), ['in:' . ($locationIds->count() ? $locationIds->implode(',') : '0')]),
+            ],
             'device_limit'           => 'nullable|integer|min:1',
             'status'                 => 'required|in:active,inactive,suspended',
             'speed_override_enabled' => 'nullable|boolean',
@@ -171,78 +231,134 @@ class CustomerController extends Controller
 
         $phone = trim((string) $data['phone']);
         $oldUsername = $customer->username;
+        $oldType = $customer->type;
         $deviceLimit = (int) ($data['device_limit'] ?? 1);
         $speedOverrideEnabled = (int) $request->input('speed_override_enabled', 0) === 1;
 
-        $customer->update([
-            'location_id'            => $data['location_id'] ?? null,
-            'type'                   => $data['type'],
-            'full_name'              => $data['full_name'],
-            'phone'                  => $phone,
-            'username'               => $phone,
-            'device_limit'           => $deviceLimit,
-            'status'                 => $data['status'],
-            'speed_override_enabled' => $speedOverrideEnabled,
-            'download_speed'         => $speedOverrideEnabled ? ($request->input('download_speed') ?: null) : null,
-            'download_unit'          => $speedOverrideEnabled ? ($request->input('download_unit', 'Mbps')) : null,
-            'upload_speed'           => $speedOverrideEnabled ? ($request->input('upload_speed') ?: null) : null,
-            'upload_unit'            => $speedOverrideEnabled ? ($request->input('upload_unit', 'Mbps')) : null,
-        ]);
+        DB::beginTransaction();
 
-        $customer->refresh();
+        try {
+            $customer->update([
+                'location_id'            => $data['location_id'] ?? null,
+                'type'                   => $data['type'],
+                'full_name'              => $data['full_name'],
+                'phone'                  => $phone,
+                'username'               => $phone,
+                'device_limit'           => $deviceLimit,
+                'status'                 => $data['status'],
+                'speed_override_enabled' => $speedOverrideEnabled,
+                'download_speed'         => $speedOverrideEnabled ? ($request->input('download_speed') ?: null) : null,
+                'download_unit'          => $speedOverrideEnabled ? ($request->input('download_unit', 'Mbps')) : null,
+                'upload_speed'           => $speedOverrideEnabled ? ($request->input('upload_speed') ?: null) : null,
+                'upload_unit'            => $speedOverrideEnabled ? ($request->input('upload_unit', 'Mbps')) : null,
+            ]);
 
-        $radius = app(RadiusUserService::class);
+            $customer->refresh();
 
-        if ($oldUsername !== $phone) {
-            $radius->deleteUser($oldUsername);
-            $radius->createOrUpdateUser($phone, '123456');
-        }
+            $radius = app(RadiusUserService::class);
 
-        $radius->setUserDeviceLimit($phone, $deviceLimit);
+            if ($oldUsername !== $phone) {
+                $oldActiveIp = DB::connection('radius')
+                    ->table('radacct')
+                    ->where('username', $oldUsername)
+                    ->whereNull('acctstoptime')
+                    ->orderByDesc('radacctid')
+                    ->value('framedipaddress');
 
-        $speed = $radius->resolveEffectiveSpeed($customer);
+                if ($oldActiveIp) {
+                    app(RadiusCoaService::class)->disconnect($oldUsername, $oldActiveIp);
+                }
 
-        if ($speed) {
-            $radius->setUserSpeed(
-                $phone,
-                $speed['download_speed'],
-                $speed['download_unit'],
-                $speed['upload_speed'],
-                $speed['upload_unit']
+                $radius->deleteUser($oldUsername);
+                $radius->createOrUpdateUser($phone, '123456', $data['type']);
+            } else {
+                if ($oldType !== $data['type']) {
+                    $radius->createOrUpdateUser($phone, '123456', $data['type']);
+                }
+            }
+
+            $radius->setUserDeviceLimit($phone, $deviceLimit);
+
+            $speed = $radius->resolveEffectiveSpeed($customer);
+
+            if ($speed) {
+                $radius->setUserSpeed(
+                    $phone,
+                    $speed['download_speed'],
+                    $speed['download_unit'],
+                    $speed['upload_speed'],
+                    $speed['upload_unit'],
+                    $data['type']
+                );
+
+                $activeIp = DB::connection('radius')
+                    ->table('radacct')
+                    ->where('username', $phone)
+                    ->whereNull('acctstoptime')
+                    ->orderByDesc('radacctid')
+                    ->value('framedipaddress');
+
+                if ($activeIp) {
+                    app(RadiusCoaService::class)->disconnect($phone, $activeIp);
+                }
+            } else {
+                $radius->clearUserSpeed($phone);
+            }
+
+            app(RadiusSessionService::class)->enforceDeviceLimit($phone, $deviceLimit);
+
+            if ($data['status'] === 'active') {
+                $radius->setUserActive($phone, $data['type']);
+            } else {
+                $radius->setUserInactive($phone);
+            }
+
+            $this->writeAuditLog(
+                $request,
+                'customer.updated',
+                $customer,
+                'Customer updated: ' . $customer->full_name,
+                [
+                    'type' => $customer->type,
+                    'phone' => $customer->phone,
+                    'username' => $customer->username,
+                    'status' => $customer->status,
+                    'device_limit' => $customer->device_limit,
+                    'old_username' => $oldUsername,
+                    'old_type' => $oldType,
+                ]
             );
 
-            $activeIp = DB::connection('radius')
-                ->table('radacct')
-                ->where('username', $phone)
-                ->whereNull('acctstoptime')
-                ->orderByDesc('radacctid')
-                ->value('framedipaddress');
+            DB::commit();
 
-            if ($activeIp) {
-                app(RadiusCoaService::class)->disconnect($phone, $activeIp);
-            }
-        } else {
-            $radius->clearUserSpeed($phone);
-        }
+            return redirect()
+                ->route('admin.customers.index')
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => 'Customer waa la update gareeyay',
+                ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
 
-        app(RadiusSessionService::class)->enforceDeviceLimit($phone, $deviceLimit);
-
-        if ($data['status'] === 'active') {
-            $radius->setUserActive($phone);
-        } else {
-            $radius->setUserInactive($phone);
-        }
-
-        return redirect()
-            ->route('admin.customers.index')
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Customer waa la update gareeyay',
+            Log::error('CUSTOMER UPDATE FAILED', [
+                'customer_id' => $customer->id,
+                'phone' => $phone,
+                'error' => $e->getMessage(),
             ]);
+
+            return back()
+                ->withInput()
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Customer lama update gareyn: ' . $e->getMessage(),
+                ]);
+        }
     }
 
     public function updatePassword(Request $request, Customer $customer)
     {
+        $this->authorizeCustomerAccess($customer);
+
         $data = $request->validate(
             [
                 'password' => 'required|string|min:6|same:password_confirmation',
@@ -254,7 +370,18 @@ class CustomerController extends Controller
             'password' => Hash::make($data['password']),
         ]);
 
-        app(RadiusUserService::class)->createOrUpdateUser($customer->username, $data['password']);
+        app(RadiusUserService::class)->createOrUpdateUser($customer->username, $data['password'], $customer->type);
+
+        $this->writeAuditLog(
+            $request,
+            'customer.password_updated',
+            $customer,
+            'Customer password updated: ' . $customer->full_name,
+            [
+                'username' => $customer->username,
+                'type' => $customer->type,
+            ]
+        );
 
         return redirect()
             ->route('admin.customers.show', $customer)
@@ -271,7 +398,24 @@ class CustomerController extends Controller
             'ip' => 'required|ip',
         ]);
 
+        $customer = Customer::where('username', $data['username'])->first();
+
+        if ($customer) {
+            $this->authorizeCustomerAccess($customer);
+        }
+
         app(RadiusCoaService::class)->disconnect($data['username'], $data['ip']);
+
+        $this->writeAuditLog(
+            $request,
+            'customer.device_disconnected',
+            $customer,
+            'Customer device disconnected: ' . $data['username'],
+            [
+                'username' => $data['username'],
+                'ip' => $data['ip'],
+            ]
+        );
 
         return back()->with('toast', [
             'type' => 'success',
@@ -281,28 +425,130 @@ class CustomerController extends Controller
 
     public function destroy(Customer $customer)
     {
-        $activeIp = DB::connection('radius')
-            ->table('radacct')
-            ->where('username', $customer->username)
-            ->whereNull('acctstoptime')
-            ->orderByDesc('radacctid')
-            ->value('framedipaddress');
+        $this->authorizeCustomerAccess($customer);
 
-        if ($activeIp) {
-            app(RadiusCoaService::class)
-                ->disconnect($customer->username, $activeIp);
+        DB::beginTransaction();
+
+        try {
+            $customerData = [
+                'id' => $customer->id,
+                'full_name' => $customer->full_name,
+                'username' => $customer->username,
+                'phone' => $customer->phone,
+                'type' => $customer->type,
+            ];
+
+            $activeIp = DB::connection('radius')
+                ->table('radacct')
+                ->where('username', $customer->username)
+                ->whereNull('acctstoptime')
+                ->orderByDesc('radacctid')
+                ->value('framedipaddress');
+
+            if ($activeIp) {
+                app(RadiusCoaService::class)
+                    ->disconnect($customer->username, $activeIp);
+            }
+
+            app(RadiusUserService::class)->deleteUser($customer->username);
+
+            $customer->delete();
+
+            $this->writeAuditLog(
+                request(),
+                'customer.deleted',
+                null,
+                'Customer deleted: ' . $customerData['full_name'],
+                [
+                    'customer_id' => $customerData['id'],
+                    'username' => $customerData['username'],
+                    'phone' => $customerData['phone'],
+                    'type' => $customerData['type'],
+                ]
+            );
+
+            DB::commit();
+
+            return redirect()
+                ->route('admin.customers.index')
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => 'Customer waa la tirtiray, internet-kana waa la jaray',
+                ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error('CUSTOMER DELETE FAILED', [
+                'customer_id' => $customer->id,
+                'username' => $customer->username,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Customer lama tirtirin: ' . $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function writeAuditLog(Request $request, string $action, ?Customer $customer, string $description, array $properties = []): void
+    {
+        try {
+            AuditLog::create([
+                'user_id' => auth()->id(),
+                'action' => $action,
+                'target_type' => $customer ? Customer::class : null,
+                'target_id' => $customer?->id,
+                'description' => $description,
+                'ip_address' => $request->ip(),
+                'properties' => !empty($properties) ? json_encode($properties, JSON_UNESCAPED_UNICODE) : null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('AUDIT LOG WRITE FAILED', [
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function isSuperAdmin(): bool
+    {
+        return auth()->check() && method_exists(auth()->user(), 'hasRole') && auth()->user()->hasRole('super_admin');
+    }
+
+    private function getAssignedLocationIds()
+    {
+        $user = auth()->user();
+
+        if (!$user || !method_exists($user, 'locations')) {
+            return collect();
         }
 
-        app(RadiusUserService::class)->deleteUser($customer->username);
+        return $user->locations()->pluck('locations.id');
+    }
 
-        $customer->delete();
+    private function getAllowedLocations()
+    {
+        if ($this->isSuperAdmin()) {
+            return Location::orderBy('name')->get();
+        }
 
-        return redirect()
-            ->route('admin.customers.index')
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Customer waa la tirtiray, internet-kana waa la jaray',
-            ]);
+        return Location::whereIn('id', $this->getAssignedLocationIds())
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function authorizeCustomerAccess(Customer $customer): void
+    {
+        if ($this->isSuperAdmin()) {
+            return;
+        }
+
+        abort_unless(
+            $this->getAssignedLocationIds()->contains($customer->location_id),
+            403,
+            'Unauthorized access to this customer.'
+        );
     }
 
     private function buildMikrotikRateLimit(

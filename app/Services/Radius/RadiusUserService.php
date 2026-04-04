@@ -4,11 +4,13 @@ namespace App\Services\Radius;
 
 use App\Models\Customer;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class RadiusUserService
 {
-    public function createOrUpdateUser(string $username, string $password): void
+    public function createOrUpdateUser(string $username, string $password, string $serviceType = 'hotspot'): void
     {
+        // CLEAN OLD PASSWORD
         DB::connection('radius')
             ->table('radcheck')
             ->where('username', $username)
@@ -24,20 +26,25 @@ class RadiusUserService
                 'value'     => $password,
             ]);
 
+        // REMOVE REJECT IF EXISTS
         DB::connection('radius')
             ->table('radcheck')
             ->where('username', $username)
             ->where('attribute', 'Auth-Type')
             ->delete();
+
+        $this->syncServiceAttributes($username, $serviceType);
     }
 
-    public function setUserActive(string $username): void
+    public function setUserActive(string $username, string $serviceType = 'hotspot'): void
     {
         DB::connection('radius')
             ->table('radcheck')
             ->where('username', $username)
             ->where('attribute', 'Auth-Type')
             ->delete();
+
+        $this->syncServiceAttributes($username, $serviceType);
     }
 
     public function setUserInactive(string $username): void
@@ -56,7 +63,6 @@ class RadiusUserService
             );
     }
 
-    // ✅ NEW: DEVICE LIMIT (Simultaneous-Use)
     public function setUserDeviceLimit(string $username, int $limit): void
     {
         $limit = max(1, $limit);
@@ -82,7 +88,8 @@ class RadiusUserService
         int|float $downloadSpeed,
         string $downloadUnit = 'Mbps',
         ?int $uploadSpeed = null,
-        ?string $uploadUnit = null
+        ?string $uploadUnit = null,
+        string $serviceType = 'hotspot'
     ): void {
         $uploadSpeed = $uploadSpeed ?? (int) $downloadSpeed;
         $uploadUnit  = $uploadUnit ?? $downloadUnit;
@@ -94,6 +101,7 @@ class RadiusUserService
             $downloadUnit
         );
 
+        // REMOVE OLD SPEED
         DB::connection('radius')
             ->table('radreply')
             ->where('username', $username)
@@ -108,6 +116,8 @@ class RadiusUserService
                 'op'        => ':=',
                 'value'     => $rateLimit,
             ]);
+
+        $this->syncServiceAttributes($username, $serviceType);
     }
 
     public function clearUserSpeed(string $username): void
@@ -121,20 +131,9 @@ class RadiusUserService
 
     public function deleteUser(string $username): void
     {
-        DB::connection('radius')
-            ->table('radcheck')
-            ->where('username', $username)
-            ->delete();
-
-        DB::connection('radius')
-            ->table('radreply')
-            ->where('username', $username)
-            ->delete();
-
-        DB::connection('radius')
-            ->table('radusergroup')
-            ->where('username', $username)
-            ->delete();
+        DB::connection('radius')->table('radcheck')->where('username', $username)->delete();
+        DB::connection('radius')->table('radreply')->where('username', $username)->delete();
+        DB::connection('radius')->table('radusergroup')->where('username', $username)->delete();
     }
 
     public function resolveEffectiveSpeed(Customer $customer): ?array
@@ -159,48 +158,68 @@ class RadiusUserService
             : $customer->subscriptions()->with('subscription')->get();
 
         $activeSubscription = $subscriptions
-            ->filter(function ($customerSubscription) {
-                if (($customerSubscription->status ?? null) !== 'active') {
-                    return false;
-                }
-
-                if (!empty($customerSubscription->expires_at) && now()->greaterThan($customerSubscription->expires_at)) {
-                    return false;
-                }
-
-                return true;
-            })
+            ->filter(fn ($cs) => ($cs->status ?? null) === 'active' &&
+                (empty($cs->expires_at) || now()->lessThan($cs->expires_at)))
             ->sortByDesc('created_at')
             ->first();
 
-        if (!$activeSubscription) {
-            return null;
-        }
+        if (!$activeSubscription) return null;
 
-        $plan = $activeSubscription->relationLoaded('subscription')
-            ? $activeSubscription->subscription
-            : $activeSubscription->subscription()->first();
+        $plan = $activeSubscription->subscription ?? $activeSubscription->subscription()->first();
+        if (!$plan) return null;
 
-        if (!$plan) {
-            return null;
-        }
-
-        $downloadSpeed = data_get($plan, 'download_speed');
-        $downloadUnit  = data_get($plan, 'download_unit', 'Mbps');
-        $uploadSpeed   = data_get($plan, 'upload_speed');
-        $uploadUnit    = data_get($plan, 'upload_unit', $downloadUnit);
-
-        if (is_null($downloadSpeed)) {
-            return null;
-        }
+        if (is_null($plan->download_speed)) return null;
 
         return [
-            'download_speed' => (int) $downloadSpeed,
-            'download_unit'  => $downloadUnit ?: 'Mbps',
-            'upload_speed'   => !is_null($uploadSpeed) ? (int) $uploadSpeed : (int) $downloadSpeed,
-            'upload_unit'    => $uploadUnit ?: ($downloadUnit ?: 'Mbps'),
+            'download_speed' => (int) $plan->download_speed,
+            'download_unit'  => $plan->download_unit ?: 'Mbps',
+            'upload_speed'   => $plan->upload_speed ?? $plan->download_speed,
+            'upload_unit'    => $plan->upload_unit ?: $plan->download_unit,
             'source'         => 'subscription',
         ];
+    }
+
+    public function resolveServiceType(Customer $customer): string
+    {
+        if (
+            Schema::hasColumn($customer->getTable(), 'service_type') &&
+            in_array(strtolower((string) $customer->service_type), ['hotspot', 'pppoe'], true)
+        ) {
+            return strtolower((string) $customer->service_type);
+        }
+
+        return 'hotspot';
+    }
+
+    protected function syncServiceAttributes(string $username, string $serviceType = 'hotspot'): void
+    {
+        $serviceType = strtolower(trim($serviceType));
+
+        // CLEAN OLD ATTRIBUTES (IMPORTANT FIX)
+        DB::connection('radius')
+            ->table('radreply')
+            ->where('username', $username)
+            ->whereIn('attribute', ['Service-Type', 'Framed-Protocol'])
+            ->delete();
+
+        if ($serviceType === 'pppoe') {
+            DB::connection('radius')
+                ->table('radreply')
+                ->insert([
+                    [
+                        'username'  => $username,
+                        'attribute' => 'Service-Type',
+                        'op'        => ':=',
+                        'value'     => 'Framed-User',
+                    ],
+                    [
+                        'username'  => $username,
+                        'attribute' => 'Framed-Protocol',
+                        'op'        => ':=',
+                        'value'     => 'PPP',
+                    ],
+                ]);
+        }
     }
 
     protected function formatMikrotikRateLimit(
@@ -209,21 +228,18 @@ class RadiusUserService
         int|float $downloadSpeed,
         string $downloadUnit
     ): string {
-        $uploadbps = $this->toBitsPerSecond($uploadSpeed, $uploadUnit);
-        $downloadbps = $this->toBitsPerSecond($downloadSpeed, $downloadUnit);
-
-        return $uploadbps . '/' . $downloadbps;
+        return $this->toBitsPerSecond($uploadSpeed, $uploadUnit)
+            . '/' .
+            $this->toBitsPerSecond($downloadSpeed, $downloadUnit);
     }
 
     protected function toBitsPerSecond(int|float $speed, string $unit): int
     {
-        $unit = strtolower(trim($unit));
-
-        return match ($unit) {
+        return match (strtolower(trim($unit))) {
             'kbps' => (int) round($speed * 1000),
-            'mbps' => (int) round($speed * 1000 * 1000),
-            'gbps' => (int) round($speed * 1000 * 1000 * 1000),
-            default => (int) round($speed * 1000 * 1000),
+            'mbps' => (int) round($speed * 1000000),
+            'gbps' => (int) round($speed * 1000000000),
+            default => (int) round($speed * 1000000),
         };
     }
 }

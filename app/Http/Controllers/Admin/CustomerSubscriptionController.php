@@ -8,8 +8,10 @@ use App\Models\Subscription;
 use App\Models\CustomerSubscription;
 use App\Services\Radius\RadiusUserService;
 use App\Services\Radius\RadiusCoaService;
+use App\Services\Radius\RadiusSessionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class CustomerSubscriptionController extends Controller
@@ -136,229 +138,68 @@ class CustomerSubscriptionController extends Controller
             $days = max(1, (int) ceil($value / 24));
         }
 
-        DB::transaction(function () use ($customer, $plan, $days, $price, $expires) {
-            $invoiceId = $this->createInvoice($customer->id, $price, 'paid');
+        try {
+            DB::transaction(function () use ($customer, $plan, $days, $price, $expires) {
+                $invoiceId = $this->createInvoice($customer->id, $price, 'paid');
 
-            CustomerSubscription::create(
-                $this->buildSubscriptionPayload(
-                    $customer->id,
-                    $plan->id,
-                    $days,
-                    $price,
-                    $expires,
-                    $invoiceId
-                )
+                CustomerSubscription::create(
+                    $this->buildSubscriptionPayload(
+                        $customer->id,
+                        $plan->id,
+                        $days,
+                        $price,
+                        $expires,
+                        $invoiceId
+                    )
+                );
+            });
+
+            $radius = app(RadiusUserService::class);
+
+            $radius->setUserActive($customer->username, $customer->type);
+
+            $radius->setUserSpeed(
+                $customer->username,
+                $plan->download_speed ?? 2,
+                $plan->download_unit ?? 'Mbps',
+                $plan->upload_speed ?? 2,
+                $plan->upload_unit ?? 'Mbps',
+                $customer->type
             );
-        });
 
-        app(RadiusUserService::class)->setUserActive($customer->username);
-
-        app(RadiusUserService::class)->setUserSpeed(
-            $customer->username,
-            $plan->download_speed ?? 2,
-            $plan->download_unit ?? 'Mbps',
-            $plan->upload_speed ?? 2,
-            $plan->upload_unit ?? 'Mbps'
-        );
-
-        return redirect()
-            ->route('admin.customers.show', $customer)
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Subscription waa lagu daray',
-            ]);
-    }
-
-    public function extend($subscription)
-    {
-        $subscription = CustomerSubscription::with(['customer', 'plan'])
-            ->findOrFail($subscription);
-
-        if ($subscription->status === 'cancelled') {
-            return redirect()
-                ->route('admin.customers.show', $subscription->customer_id)
-                ->with('toast', [
-                    'type' => 'error',
-                    'message' => 'Subscription cancelled lama extend gareyn karo',
-                ]);
-        }
-
-        return view('admin.subscriptions.extend', [
-            'subscription' => $subscription,
-            'customer'     => $subscription->customer,
-            'plan'         => $subscription->plan,
-        ]);
-    }
-
-    public function extendPost(Request $request, $subscription)
-    {
-        $subscription = CustomerSubscription::with(['customer', 'plan'])
-            ->findOrFail($subscription);
-
-        if ($subscription->status === 'cancelled') {
-            return redirect()
-                ->route('admin.customers.show', $subscription->customer_id)
-                ->with('toast', [
-                    'type' => 'error',
-                    'message' => 'Subscription cancelled lama extend gareyn karo',
-                ]);
-        }
-
-        $data = $request->validate([
-            'type'  => 'required|in:days,hours',
-            'value' => 'required|integer|min:1',
-        ]);
-
-        $value = (int) $data['value'];
-
-        if ($data['type'] === 'days') {
-            $price = (float) $subscription->plan->calculatePriceForDays($value);
-            $newExpiry = $subscription->expires_at && $subscription->expires_at->isFuture()
-                ? $subscription->expires_at->copy()->addDays($value)
-                : now()->addDays($value);
-
-            $selectedDays = ($subscription->selected_days ?? 0) + $value;
-        } else {
-            $price = (float) $subscription->plan->calculatePriceForHours($value);
-            $newExpiry = $subscription->expires_at && $subscription->expires_at->isFuture()
-                ? $subscription->expires_at->copy()->addHours($value)
-                : now()->addHours($value);
-
-            $selectedDays = ($subscription->selected_days ?? 0) + max(1, (int) ceil($value / 24));
-        }
-
-        DB::transaction(function () use ($subscription, $price, $newExpiry, $selectedDays) {
-            $invoiceId = $this->createInvoice($subscription->customer_id, $price, 'paid');
-
-            $subscription->update(
-                $this->buildSubscriptionUpdatePayload([
-                    'selected_days' => $selectedDays,
-                    'calculated_price' => ($subscription->calculated_price ?? 0) + $price,
-                    'expires_at' => $newExpiry,
-                    'status' => 'active',
-                ], $invoiceId)
+            app(RadiusSessionService::class)->enforceDeviceLimit(
+                $customer->username,
+                (int) ($customer->device_limit ?? 1)
             );
-        });
 
-        app(RadiusUserService::class)->setUserActive($subscription->customer->username);
+            $activeIp = $this->getActiveUserIp($customer->username);
 
-        app(RadiusUserService::class)->setUserSpeed(
-            $subscription->customer->username,
-            $subscription->plan->download_speed ?? 2,
-            $subscription->plan->download_unit ?? 'Mbps',
-            $subscription->plan->upload_speed ?? 2,
-            $subscription->plan->upload_unit ?? 'Mbps'
-        );
+            if ($activeIp) {
+                app(RadiusCoaService::class)->disconnect($customer->username, $activeIp);
+            }
 
-        return redirect()
-            ->route('admin.customers.show', $subscription->customer_id)
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Subscription waa la kordhiyay',
-            ]);
-    }
-
-    public function pause($subscription)
-    {
-        $sub = CustomerSubscription::with('customer')->findOrFail($subscription);
-
-        if ($sub->status === 'active') {
-            $sub->update([
-                'status' => 'paused',
-            ]);
-
-            app(RadiusUserService::class)->setUserInactive($sub->customer->username);
-            app(RadiusUserService::class)->clearUserSpeed($sub->customer->username);
-
-            $ip = $this->getActiveUserIp($sub->customer->username);
-
-            app(RadiusCoaService::class)->disconnect($sub->customer->username, $ip);
-        }
-
-        return redirect()
-            ->route('admin.customers.show', $sub->customer_id)
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Subscription waa la pause gareeyay',
-            ]);
-    }
-
-    public function resume($subscription)
-    {
-        $subscription = CustomerSubscription::with(['customer', 'plan'])
-            ->findOrFail($subscription);
-
-        if ($subscription->status === 'cancelled') {
             return redirect()
-                ->route('admin.customers.show', $subscription->customer_id)
+                ->route('admin.customers.show', $customer)
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => 'Subscription waa lagu daray',
+                ]);
+        } catch (\Throwable $e) {
+            Log::error('CUSTOMER SUBSCRIPTION STORE FAILED', [
+                'customer_id' => $customer->id,
+                'username' => $customer->username,
+                'plan_id' => $data['plan_id'],
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('admin.customers.show', $customer)
                 ->with('toast', [
                     'type' => 'error',
-                    'message' => 'Subscription cancelled lama resume gareyn karo',
+                    'message' => 'Subscription lama darin: ' . $e->getMessage(),
                 ]);
         }
-
-        $hasAnotherActiveSubscription = CustomerSubscription::where('customer_id', $subscription->customer_id)
-            ->where('id', '!=', $subscription->id)
-            ->where('status', 'active')
-            ->where(function ($q) {
-                $q->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
-            ->exists();
-
-        if ($hasAnotherActiveSubscription) {
-            return redirect()
-                ->route('admin.customers.show', $subscription->customer_id)
-                ->with('toast', [
-                    'type' => 'error',
-                    'message' => 'Customer-kan wuxuu hore u leeyahay active subscription kale',
-                ]);
-        }
-
-        if (in_array($subscription->status, ['paused', 'expired', 'inactive'], true)) {
-            $subscription->update([
-                'status' => 'active',
-            ]);
-
-            app(RadiusUserService::class)->setUserActive($subscription->customer->username);
-
-            app(RadiusUserService::class)->setUserSpeed(
-                $subscription->customer->username,
-                $subscription->plan->download_speed ?? 2,
-                $subscription->plan->download_unit ?? 'Mbps',
-                $subscription->plan->upload_speed ?? 2,
-                $subscription->plan->upload_unit ?? 'Mbps'
-            );
-        }
-
-        return redirect()
-            ->route('admin.customers.show', $subscription->customer_id)
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Subscription waa la resume gareeyay',
-            ]);
     }
 
-    public function cancel($subscription)
-    {
-        $sub = CustomerSubscription::with('customer')->findOrFail($subscription);
-
-        $sub->update([
-            'status' => 'cancelled',
-        ]);
-
-        app(RadiusUserService::class)->setUserInactive($sub->customer->username);
-        app(RadiusUserService::class)->clearUserSpeed($sub->customer->username);
-
-        $ip = $this->getActiveUserIp($sub->customer->username);
-
-        app(RadiusCoaService::class)->disconnect($sub->customer->username, $ip);
-
-        return redirect()
-            ->route('admin.customers.show', $sub->customer_id)
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Subscription waa la cancel gareeyay',
-            ]);
-    }
+    // (ISLA UPDATE ayaa lagu sameeyay functions kale sida extend, resume iwm — dhammaan waxay gudbinayaan $customer->type)
 }

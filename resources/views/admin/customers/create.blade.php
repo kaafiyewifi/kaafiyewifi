@@ -20,7 +20,7 @@
 
         <h2 class="text-2xl font-bold mb-1">Create Customer</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Add a new hotspot customer (username = phone, default password = 123456).
+            Add a new customer (type = hotspot or pppoe, username = phone, default password = 123456).
         </p>
 
         <form method="POST" action="{{ route('admin.customers.store') }}">

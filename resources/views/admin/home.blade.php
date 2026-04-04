@@ -31,7 +31,8 @@
     })->values()->all();
 
     $totalCustomers = (int) ($stats['total_customers'] ?? 0);
-    $totalActive = (int) ($stats['total_active_customers'] ?? 0);
+    $totalHotspot = (int) ($stats['total_hotspot_customers'] ?? 0);
+    $totalPppoe = (int) ($stats['total_pppoe_customers'] ?? 0);
     $onlineUsers = (int) ($stats['online_users'] ?? 0);
     $todaySales = (float) ($stats['today_sales'] ?? 0);
     $monthlySales = (float) ($stats['monthly_sales'] ?? 0);
@@ -125,28 +126,34 @@
             'tone' => 'blue',
         ],
         [
-            'title' => 'Total Active',
-            'value' => number_format($totalActive),
-            'sub' => 'Active customer accounts',
+            'title' => 'Total Customer of Hotspot Users',
+            'value' => number_format($totalHotspot),
+            'sub' => 'All hotspot customers',
             'tone' => 'green',
+        ],
+        [
+            'title' => 'Total PPPoE Customers',
+            'value' => number_format($totalPppoe),
+            'sub' => 'All PPPoE customers',
+            'tone' => 'indigo',
         ],
         [
             'title' => 'Online Users',
             'value' => number_format($onlineUsers),
             'sub' => 'Users online right now',
-            'tone' => 'indigo',
+            'tone' => 'emerald',
         ],
         [
             'title' => 'Today Sales',
             'value' => '$' . number_format($todaySales, 2),
             'sub' => 'Today total sales',
-            'tone' => 'emerald',
+            'tone' => 'purple',
         ],
         [
             'title' => 'Monthly Sales',
             'value' => '$' . number_format($monthlySales, 2),
             'sub' => 'Current month sales',
-            'tone' => 'purple',
+            'tone' => 'blue',
         ],
     ];
 
@@ -182,7 +189,7 @@
 <div class="space-y-4">
 
     {{-- KPI CARDS --}}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
         @foreach($cards as $card)
             @php
                 $tone = $tones[$card['tone']] ?? $tones['blue'];
