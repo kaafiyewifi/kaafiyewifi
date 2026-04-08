@@ -4,20 +4,20 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use Notifiable, HasRoles;
+    use HasFactory, Notifiable, HasRoles;
 
-   protected $fillable = [
-    'name',
-    'email',
-    'phone',
-    'password',
-    'status',
-];
-
+    protected $fillable = [
+        'name',
+        'email',
+        'phone',
+        'password',
+        'status',
+    ];
 
     protected $hidden = [
         'password',
@@ -26,12 +26,17 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed', // haddii Laravel 11+; haddii kale ka saar
+        'password' => 'hashed',
     ];
 
     public function locations()
     {
         return $this->belongsToMany(\App\Models\Location::class)->withTimestamps();
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(\App\Models\Subscription::class, 'created_by');
     }
 
     /**
@@ -53,7 +58,9 @@ class User extends Authenticatable
      */
     public function canAccessLocation(int $locationId): bool
     {
-        if ($this->hasRole('super_admin')) return true;
+        if ($this->hasRole('super_admin')) {
+            return true;
+        }
 
         return $this->locations()->where('locations.id', $locationId)->exists();
     }

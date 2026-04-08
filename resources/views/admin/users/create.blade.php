@@ -20,7 +20,7 @@
 
         <h2 class="text-2xl font-bold mb-1">Create User</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Add admin or operator (email or phone login).
+            Add a new user with one of these roles: super admin, admin, or support.
         </p>
 
         <form method="POST" action="{{ route('admin.users.store') }}">

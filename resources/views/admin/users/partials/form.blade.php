@@ -7,6 +7,35 @@
               focus:border-[#ff4b2b] focus:ring-2 focus:ring-[#ff4b2b]/25 focus:outline-none';
 
     $label = 'block text-sm font-semibold text-gray-800 dark:text-gray-100';
+
+    $viewer = auth()->user();
+    $isSuperAdmin = $viewer && method_exists($viewer, 'hasRole') && $viewer->hasRole('super_admin');
+    $isAdmin = $viewer && method_exists($viewer, 'hasRole') && $viewer->hasRole('admin');
+
+    $allowedRoleOptions = collect($roles ?? [])->filter(function ($role) use ($isSuperAdmin, $isAdmin) {
+        if ($isSuperAdmin) {
+            return in_array($role, ['super_admin', 'admin', 'support'], true);
+        }
+
+        if ($isAdmin) {
+            return $role === 'support';
+        }
+
+        return false;
+    })->values();
+
+    $selectedLocations = old('locations', $selectedLocations ?? []);
+
+    $visibleLocations = collect($locations ?? []);
+
+    if ($isAdmin) {
+        $adminLocationIds = $viewer->locations()->pluck('locations.id')->toArray();
+        $visibleLocations = $visibleLocations->whereIn('id', $adminLocationIds)->values();
+
+        if (empty($selectedLocations)) {
+            $selectedLocations = $adminLocationIds;
+        }
+    }
 @endphp
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -56,10 +85,10 @@
     <div>
         <label class="{{ $label }}">Role</label>
         <select name="role" class="{{ $input }}" required>
-            @foreach($roles as $role)
+            @foreach($allowedRoleOptions as $role)
                 <option value="{{ $role }}"
                     {{ old('role', $currentRole ?? '') === $role ? 'selected' : '' }}>
-                    {{ ucfirst($role) }}
+                    {{ ucwords(str_replace('_', ' ', $role)) }}
                 </option>
             @endforeach
         </select>
@@ -85,19 +114,34 @@
     <div class="sm:col-span-2">
         <label class="{{ $label }}">Locations</label>
 
-        @if($locations->count())
-            <select id="locations" name="locations[]" multiple class="w-full">
-                @foreach($locations as $loc)
-                    <option value="{{ $loc->id }}"
-                        @selected(in_array($loc->id, old('locations', $selectedLocations ?? [])))>
-                        {{ $loc->name }}
-                    </option>
+        @if($visibleLocations->count())
+            @if($isAdmin)
+                @foreach($visibleLocations as $loc)
+                    <input type="hidden" name="locations[]" value="{{ $loc->id }}">
                 @endforeach
-            </select>
 
-            <p class="text-xs text-gray-500 mt-2">
-                Choose where this user can access.
-            </p>
+                <div class="mt-2 rounded-xl border border-gray-300 dark:border-gray-800
+                            bg-white dark:bg-gray-950 px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                    {{ $visibleLocations->pluck('name')->join(', ') }}
+                </div>
+
+                <p class="text-xs text-gray-500 mt-2">
+                    Waxaa laguu xirey location-kaaga oo kaliya.
+                </p>
+            @else
+                <select id="locations" name="locations[]" multiple class="w-full">
+                    @foreach($visibleLocations as $loc)
+                        <option value="{{ $loc->id }}"
+                            @selected(in_array($loc->id, $selectedLocations))>
+                            {{ $loc->name }}
+                        </option>
+                    @endforeach
+                </select>
+
+                <p class="text-xs text-gray-500 mt-2">
+                    Choose the locations this user can access.
+                </p>
+            @endif
         @else
             <p class="text-sm text-gray-500">
                 No locations found.

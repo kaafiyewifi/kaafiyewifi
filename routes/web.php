@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\CustomerSubscriptionController;
 use App\Http\Controllers\Admin\Customers\CustomerSessionController;
 use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\ReportController;
 
 // Routers (Admin)
 use App\Http\Controllers\Admin\RouterController;
@@ -186,7 +187,7 @@ Route::middleware(['auth'])->group(function () {
     */
     Route::prefix('admin')
         ->name('admin.')
-        ->middleware(['role:super_admin|admin|agent'])
+        ->middleware(['role:super_admin|admin|support'])
         ->group(function () {
 
             Route::post('/devices/disconnect', [CustomerController::class, 'disconnectDevice'])
@@ -205,7 +206,7 @@ Route::middleware(['auth'])->group(function () {
 
             Route::resource('users', UserController::class)
                 ->except(['show'])
-                ->middleware('permission:manage users');
+                ->middleware('role:super_admin|admin');
 
             Route::resource('customers', CustomerController::class);
 
@@ -270,16 +271,10 @@ Route::middleware(['auth'])->group(function () {
 
             /*
             |------------------------------------------------------------------
-            | Routers – SUPER ADMIN ONLY
+            | Routers Wizard – SUPER ADMIN + ADMIN
             |------------------------------------------------------------------
             */
-            Route::middleware('role:super_admin')->group(function () {
-
-                Route::get('routers/cleanup', [RouterCleanupController::class, 'preview'])
-                    ->name('routers.cleanup.preview');
-
-                Route::post('routers/cleanup', [RouterCleanupController::class, 'run'])
-                    ->name('routers.cleanup.run');
+            Route::middleware('role:super_admin|admin')->group(function () {
 
                 // Wizard – Stage 1
                 Route::get('routers/link-mikrotik', [RouterWizardController::class, 'stage1'])
@@ -297,6 +292,20 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('routers/{router}/wizard/status', [RouterWizardController::class, 'status'])
                     ->whereNumber('router')
                     ->name('routers.wizard.status');
+            });
+
+            /*
+            |------------------------------------------------------------------
+            | Routers – SUPER ADMIN ONLY
+            |------------------------------------------------------------------
+            */
+            Route::middleware('role:super_admin')->group(function () {
+
+                Route::get('routers/cleanup', [RouterCleanupController::class, 'preview'])
+                    ->name('routers.cleanup.preview');
+
+                Route::post('routers/cleanup', [RouterCleanupController::class, 'run'])
+                    ->name('routers.cleanup.run');
 
                 // Router CRUD (except index/show)
                 Route::resource('routers', RouterController::class)
@@ -353,6 +362,8 @@ Route::middleware(['auth'])->group(function () {
             | Router Actions – All admin roles
             |------------------------------------------------------------------
             */
+            Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+
             Route::post('routers/{router}/winbox/regenerate', [RouterActionsController::class, 'regenerateWinbox'])
                 ->whereNumber('router')
                 ->name('routers.winbox.regenerate');
@@ -383,7 +394,6 @@ Route::middleware(['auth'])->group(function () {
 
             // UI placeholders
             Route::view('hotspots', 'admin/hotspots/index')->name('hotspots.index');
-            Route::view('reports', 'admin/reports/index')->name('reports.index');
         });
 });
 

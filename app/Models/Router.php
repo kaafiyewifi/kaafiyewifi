@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 
 class Router extends Model
@@ -30,6 +31,7 @@ class Router extends Model
 
         // misc
         'tenant_id',
+        'location_id',
         'mgmt_host',
         'wg_ip',
         'radius_secret',
@@ -83,7 +85,6 @@ class Router extends Model
             $this->attributes['router_identity'] = $value;
         }
 
-        // Optional: keep name in sync if empty
         if ((empty($this->attributes['name']) || trim((string) $this->attributes['name']) === '') && $value !== '') {
             $this->attributes['name'] = $value;
         }
@@ -96,6 +97,11 @@ class Router extends Model
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
     }
 
     /**

@@ -27,6 +27,13 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 text-sm text-slate-700 dark:text-slate-300">
 
                 <div class="rounded-xl bg-slate-50 dark:bg-slate-800/40 p-4">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Location</p>
+                    <p class="mt-1 font-semibold">
+                        {{ $subscription->location->name ?? 'No location' }}
+                    </p>
+                </div>
+
+                <div class="rounded-xl bg-slate-50 dark:bg-slate-800/40 p-4">
                     <p class="text-xs text-slate-500 dark:text-slate-400">Price</p>
                     <p class="mt-1 font-semibold text-green-600">
                         ${{ number_format($subscription->price, 2) }}

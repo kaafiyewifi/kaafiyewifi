@@ -186,7 +186,7 @@
     ];
 @endphp
 
-<div class="space-y-4">
+<div class="space-y-4 overflow-x-hidden">
 
     {{-- KPI CARDS --}}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
@@ -197,16 +197,16 @@
 
             <div class="rounded-[22px] border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div class="flex items-start justify-between gap-3">
-                    <div>
+                    <div class="min-w-0">
                         <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                             {{ $card['title'] }}
                         </div>
-                        <div class="mt-3 text-[18px] font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-[19px]">
+                        <div class="mt-3 break-words text-[18px] font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-[19px]">
                             {{ $card['value'] }}
                         </div>
                     </div>
 
-                    <div class="inline-flex h-12 w-12 items-center justify-center rounded-2xl {{ $tone['soft'] }}">
+                    <div class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl {{ $tone['soft'] }}">
                         <span class="h-3 w-3 rounded-full {{ $tone['dot'] }}"></span>
                     </div>
                 </div>
@@ -226,7 +226,7 @@
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <div class="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div class="flex items-center justify-between gap-3">
-                <div>
+                <div class="min-w-0">
                     <h3 class="text-[15px] font-semibold text-slate-900 dark:text-white">Chart Revenue</h3>
                     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Today vs monthly revenue trend</p>
                 </div>
@@ -237,11 +237,11 @@
 
         <div class="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div class="flex items-center justify-between gap-3">
-                <div>
+                <div class="min-w-0">
                     <h3 class="text-[15px] font-semibold text-slate-900 dark:text-white">Internet Usage Total</h3>
                     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Total internet usage by days</p>
                 </div>
-                <div class="text-right">
+                <div class="text-right shrink-0">
                     <div class="text-[11px] text-slate-500 dark:text-slate-400">Total Usage</div>
                     <div class="text-sm font-bold text-slate-900 dark:text-white">{{ number_format($totalInternetUsageMb, 2) }} MB</div>
                 </div>
@@ -296,46 +296,54 @@
             </p>
         </div>
 
-        <div class="mt-4 overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-slate-50 dark:bg-slate-800">
-                    <tr class="text-left text-slate-600 dark:text-slate-300">
-                        <th class="px-4 py-3 whitespace-nowrap">IP Address</th>
-                        <th class="px-4 py-3 whitespace-nowrap">MAC Address</th>
-                        <th class="px-4 py-3 whitespace-nowrap">Up Time</th>
-                        <th class="px-4 py-3 whitespace-nowrap">Usage</th>
-                        <th class="px-4 py-3 whitespace-nowrap">Last Connected</th>
-                    </tr>
-                </thead>
+        <div class="mt-4 overflow-hidden">
+            <div class="w-full overflow-x-auto overscroll-contain">
+                <div class="min-w-[760px]">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 dark:bg-slate-800">
+                            <tr class="text-left text-slate-600 dark:text-slate-300">
+                                <th class="px-4 py-3 whitespace-nowrap">IP Address</th>
+                                <th class="px-4 py-3 whitespace-nowrap">MAC Address</th>
+                                <th class="px-4 py-3 whitespace-nowrap">Up Time</th>
+                                <th class="px-4 py-3 whitespace-nowrap">Usage</th>
+                                <th class="px-4 py-3 whitespace-nowrap">Last Connected</th>
+                            </tr>
+                        </thead>
 
-                <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-                    @forelse($devices as $device)
-                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                            <td class="px-4 py-3 whitespace-nowrap text-slate-900 dark:text-white">
-                                {{ $device['ip'] ?? '-' }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-slate-900 dark:text-white">
-                                {{ $device['mac'] ?? '-' }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-slate-900 dark:text-white">
-                                {{ $device['uptime'] ?? '-' }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-slate-900 dark:text-white">
-                                {{ $device['usage'] ?? '-' }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-slate-900 dark:text-white">
-                                {{ $device['last_connected'] ?? '-' }}
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
-                                No connected devices found
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                            @forelse($devices as $device)
+                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                                    <td class="px-4 py-3 whitespace-nowrap text-slate-900 dark:text-white">
+                                        {{ $device['ip'] ?? '-' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-slate-900 dark:text-white">
+                                        {{ $device['mac'] ?? '-' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-slate-900 dark:text-white">
+                                        {{ $device['uptime'] ?? '-' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-slate-900 dark:text-white">
+                                        {{ $device['usage'] ?? '-' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-slate-900 dark:text-white">
+                                        {{ $device['last_connected'] ?? '-' }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
+                                        No connected devices found
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="pt-3 text-center text-xs text-slate-500 dark:text-slate-400 sm:hidden">
+                Swipe left/right inside the card to see full table
+            </div>
         </div>
     </div>
 

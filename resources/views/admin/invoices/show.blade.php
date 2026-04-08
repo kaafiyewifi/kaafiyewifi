@@ -52,6 +52,7 @@
         box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
         padding: 30px 32px 26px;
         color: #111827;
+        overflow-x: hidden;
     }
 
     .invoice-signature {
@@ -84,6 +85,16 @@
     .invoice-total-table .grand-total td {
         background: #ef1b1b;
         color: #ffffff;
+    }
+
+    @media (max-width: 640px) {
+        .invoice-paper {
+            padding: 18px 16px 20px;
+        }
+
+        .invoice-signature {
+            font-size: 30px;
+        }
     }
 
     @media print {
@@ -143,17 +154,17 @@
     }
 </style>
 
-<div class="space-y-6">
+<div class="space-y-6 overflow-x-hidden">
     <div class="no-print flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-            <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ $invoiceCode }}</h2>
+        <div class="min-w-0">
+            <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white break-words">{{ $invoiceCode }}</h2>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Invoice details and payment receipt</p>
         </div>
 
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <a
                 href="{{ route('admin.invoices.index') }}"
-                class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
                 Back
             </a>
@@ -161,7 +172,7 @@
             <button
                 type="button"
                 onclick="window.print()"
-                class="inline-flex items-center rounded-xl bg-[#ff5437] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#e94b32]"
+                class="inline-flex items-center justify-center rounded-xl bg-[#ff5437] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#e94b32]"
             >
                 Print Invoice
             </button>
@@ -170,18 +181,18 @@
 
     <div id="print-invoice-area" class="invoice-print-sheet">
         <div class="invoice-paper">
-            <div class="flex items-start justify-between gap-8">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="pt-1">
                     <h1 class="text-[20px] font-semibold tracking-wide text-black">INVOICE</h1>
                 </div>
 
-                <div class="text-right">
+                <div class="text-left sm:text-right">
                     <div class="text-[15px] font-bold text-black">{{ $companyName }}</div>
                 </div>
             </div>
 
-            <div class="mt-10 flex items-start justify-between gap-8">
-                <div class="max-w-[52%]">
+            <div class="mt-8 flex flex-col gap-8 sm:mt-10 md:flex-row md:items-start md:justify-between">
+                <div class="max-w-full md:max-w-[52%]">
                     <p class="text-[13px] leading-6 text-[#444]">
                         <span class="font-bold text-black">{{ $companyName }}</span>,
                         {{ $companyAddress }}
@@ -189,7 +200,7 @@
 
                     <div class="mt-5">
                         <div class="text-[15px] font-bold uppercase text-black">Bill To</div>
-                        <div class="mt-2 space-y-1 text-[14px] leading-7 text-black">
+                        <div class="mt-2 space-y-1 text-[14px] leading-7 text-black break-words">
                             <div class="font-semibold">{{ $customerName }}</div>
                             <div>{{ $invoice->phone ?? '—' }}</div>
                             <div>{{ $invoice->username ?? '—' }}</div>
@@ -198,10 +209,10 @@
                     </div>
                 </div>
 
-                <div class="min-w-[220px] text-[14px]">
+                <div class="w-full max-w-full text-[14px] md:min-w-[220px] md:max-w-[260px]">
                     <div class="grid grid-cols-[110px_1fr] gap-y-2">
                         <div class="font-semibold text-[#333]">Invoice No.:</div>
-                        <div class="text-right font-bold text-black">{{ $invoiceCode }}</div>
+                        <div class="text-right font-bold text-black break-words">{{ $invoiceCode }}</div>
 
                         <div class="font-semibold text-[#333]">Issue date:</div>
                         <div class="text-right font-bold text-black">{{ $issueDate }}</div>
@@ -212,13 +223,13 @@
 
                     <div class="mt-6 grid grid-cols-[110px_1fr] gap-y-2">
                         <div class="font-semibold text-[#333]">Reference:</div>
-                        <div class="text-right font-bold text-black">{{ $referenceText }}</div>
+                        <div class="text-right font-bold text-black break-words">{{ $referenceText }}</div>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-10">
-                <table class="invoice-table w-full border-collapse text-[14px] text-black">
+            <div class="mt-8 sm:mt-10 overflow-x-auto">
+                <table class="invoice-table w-full min-w-[620px] border-collapse text-[14px] text-black">
                     <thead>
                         <tr>
                             <th class="text-left">Description</th>
@@ -240,8 +251,8 @@
                 </table>
             </div>
 
-            <div class="mt-4 flex justify-end">
-                <table class="invoice-total-table w-full max-w-[360px] border-collapse text-[14px]">
+            <div class="mt-4 flex justify-start sm:justify-end overflow-x-auto">
+                <table class="invoice-total-table w-full max-w-full sm:max-w-[360px] border-collapse text-[14px]">
                     <tr>
                         <td class="text-left text-[#555]">TOTAL (USD):</td>
                         <td class="text-right text-[#555]">${{ $amount }}</td>
@@ -253,8 +264,8 @@
                 </table>
             </div>
 
-            <div class="mt-8 flex justify-end">
-                <div class="text-right">
+            <div class="mt-8 flex justify-start sm:justify-end">
+                <div class="text-left sm:text-right">
                     <div class="text-[14px] font-semibold text-black">Issued by, signature:</div>
                     <div class="mt-5">
                         <span class="invoice-signature">{{ $companyName }}</span>
@@ -262,10 +273,10 @@
                 </div>
             </div>
 
-            <div class="mt-12 border-t border-[#d9d9d9] pt-5 text-[13px] text-black">
+            <div class="mt-12 border-t border-[#d9d9d9] pt-5 text-[13px] leading-6 text-black break-words">
                 <span class="font-bold">{{ $companyName }}</span>,
                 {{ $companyAddress }}
-                <span class="ml-3 font-bold">Email:</span>
+                <span class="ml-0 sm:ml-3 font-bold">Email:</span>
                 {{ $companyEmail }}
             </div>
         </div>

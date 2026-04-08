@@ -14,6 +14,8 @@
 
     $user = auth()->user();
     $isSuperAdmin = auth()->check() && $user && method_exists($user, 'hasRole') && $user->hasRole('super_admin');
+    $isAdmin      = auth()->check() && $user && method_exists($user, 'hasRole') && $user->hasRole('admin');
+    $isSupport    = auth()->check() && $user && method_exists($user, 'hasRole') && $user->hasRole('support');
 @endphp
 
 <aside id="sidebar"
@@ -62,30 +64,6 @@
             <span class="{{ $hideOnCollapsed }}">Admin Home</span>
         </a>
 
-        {{-- MikroTik Routers --}}
-        @if($isSuperAdmin)
-            <a href="{{ route('admin.routers.index') }}"
-               class="{{ $wrap($isActive('admin.routers.*')) }} {{ $centerOnCollapsed }}">
-                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect x="3" y="7" width="18" height="10" rx="2" stroke-width="2"/>
-                    <path d="M7 12h.01M11 12h.01M15 12h.01" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                <span class="{{ $hideOnCollapsed }}">MikroTik Routers</span>
-            </a>
-        @endif
-
-        {{-- User Management --}}
-        <a href="{{ route('admin.users.index') }}"
-           class="{{ $wrap($isActive('admin.users.*')) }} {{ $centerOnCollapsed }}">
-            <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            <span class="{{ $hideOnCollapsed }}">User Management</span>
-        </a>
-
         {{-- Customers --}}
         <a href="{{ route('admin.customers.index') }}"
            class="{{ $wrap($isActive('admin.customers.*')) }} {{ $centerOnCollapsed }}">
@@ -98,61 +76,97 @@
             <span class="{{ $hideOnCollapsed }}">Customers</span>
         </a>
 
-        {{-- Subscriptions --}}
-        <a href="{{ route('admin.subscriptions.index') }}"
-           class="{{ $wrap($isActive('admin.subscriptions.*')) }} {{ $centerOnCollapsed }}">
-            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M12 8c-3.866 0-7 1.79-7 4v2h14v-2c0-2.21-3.134-4-7-4Z"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M12 8V6a3 3 0 0 1 6 0v2M12 8V6a3 3 0 0 0-6 0v2"/>
-            </svg>
-            <span class="{{ $hideOnCollapsed }}">Subscriptions</span>
-        </a>
+        @if($isAdmin || $isSuperAdmin)
+            {{-- Subscriptions --}}
+            <a href="{{ route('admin.subscriptions.index') }}"
+               class="{{ $wrap($isActive('admin.subscriptions.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M12 8c-3.866 0-7 1.79-7 4v2h14v-2c0-2.21-3.134-4-7-4Z"/>
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M12 8V6a3 3 0 0 1 6 0v2M12 8V6a3 3 0 0 0-6 0v2"/>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">Subscriptions</span>
+            </a>
 
-        {{-- Billing --}}
-        <a href="{{ route('admin.invoices.index') }}"
-           class="{{ $wrap($isActive('admin.invoices.*')) }} {{ $centerOnCollapsed }}">
-            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M9 14h6m-6-4h6m2 11H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M14 3v5h5"/>
-            </svg>
-            <span class="{{ $hideOnCollapsed }}">Billing</span>
-        </a>
+            {{-- Vouchers --}}
+            <a href="{{ route('admin.vouchers.index') }}"
+               class="{{ $wrap($isActive('admin.vouchers.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M20 12a2 2 0 0 1 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 0-4V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 1 0 4Z"/>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">Vouchers</span>
+            </a>
 
-        {{-- Audit Logs --}}
-        <a href="{{ route('admin.audit.index') }}"
-           class="{{ $wrap($isActive('admin.audit.*')) }} {{ $centerOnCollapsed }}">
-            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M9 17v-6m4 6V7m4 10v-3M7 3h10l4 4v14H3V3h4"/>
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M13 3v5h5"/>
-            </svg>
-            <span class="{{ $hideOnCollapsed }}">Audit Logs</span>
-        </a>
+            {{-- Billing --}}
+            <a href="{{ route('admin.invoices.index') }}"
+               class="{{ $wrap($isActive('admin.invoices.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M9 14h6m-6-4h6m2 11H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/>
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M14 3v5h5"/>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">Billing</span>
+            </a>
 
-        {{-- Vouchers --}}
-        <a href="{{ route('admin.vouchers.index') }}"
-           class="{{ $wrap($isActive('admin.vouchers.*')) }} {{ $centerOnCollapsed }}">
-            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M20 12a2 2 0 0 1 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 0-4V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 1 0 4Z"/>
-            </svg>
-            <span class="{{ $hideOnCollapsed }}">Vouchers</span>
-        </a>
+            {{-- MikroTik Routers --}}
+            <a href="{{ route('admin.routers.index') }}"
+               class="{{ $wrap($isActive('admin.routers.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <rect x="3" y="7" width="18" height="10" rx="2" stroke-width="2"/>
+                    <path d="M7 12h.01M11 12h.01M15 12h.01" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">MikroTik Routers</span>
+            </a>
 
-        {{-- Locations --}}
-        <a href="{{ route('admin.locations.index') }}"
-           class="{{ $wrap($isActive('admin.locations.*')) }} {{ $centerOnCollapsed }}">
-            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z"/>
-            </svg>
-            <span class="{{ $hideOnCollapsed }}">Locations</span>
-        </a>
+            {{-- User Management --}}
+            <a href="{{ route('admin.users.index') }}"
+               class="{{ $wrap($isActive('admin.users.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">User Management</span>
+            </a>
+        @endif
+
+        @if($isSuperAdmin)
+            {{-- Locations --}}
+            <a href="{{ route('admin.locations.index') }}"
+               class="{{ $wrap($isActive('admin.locations.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z"/>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">Location</span>
+            </a>
+
+            {{-- Audit Logs --}}
+            <a href="{{ route('admin.audit.index') }}"
+               class="{{ $wrap($isActive('admin.audit.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M9 17v-6m4 6V7m4 10v-3M7 3h10l4 4v14H3V3h4"/>
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M13 3v5h5"/>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">Audit Logs</span>
+            </a>
+
+            {{-- Reports --}}
+            <a href="{{ route('admin.reports.index') }}"
+               class="{{ $wrap($isActive('admin.reports.*')) }} {{ $centerOnCollapsed }}">
+                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          d="M7 20V10m5 10V4m5 16v-7"/>
+                </svg>
+                <span class="{{ $hideOnCollapsed }}">Reports</span>
+            </a>
+        @endif
 
     </nav>
 

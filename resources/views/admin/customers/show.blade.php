@@ -26,7 +26,7 @@
         }
     }"
     x-init="startDevicesRefresh()"
-    class="mx-auto max-w-7xl px-4 py-6 space-y-6"
+    class="mx-auto max-w-7xl px-4 py-6 space-y-6 overflow-x-hidden"
 >
 
 @php
@@ -82,13 +82,13 @@
 <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
     <div class="flex flex-col gap-5 px-6 py-6 md:flex-row md:items-start md:justify-between">
-        <div class="flex items-center gap-4">
-            <div class="flex h-14 w-14 items-center justify-center rounded-full bg-[#ff5437] text-xl font-semibold text-white shadow-sm">
+        <div class="flex items-center gap-4 min-w-0">
+            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#ff5437] text-xl font-semibold text-white shadow-sm">
                 {{ strtoupper(substr($customer->full_name ?? $customer->name, 0, 1)) }}
             </div>
 
-            <div class="flex-1">
-                <h2 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 break-words">
                     {{ $customer->full_name ?? $customer->name }}
                 </h2>
 
@@ -212,7 +212,7 @@
 
         <div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
             <p class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Speed</p>
-            <p class="mt-1 font-semibold text-slate-900 dark:text-slate-100">
+            <p class="mt-1 font-semibold text-slate-900 dark:text-slate-100 break-words">
                 @if($displayDownloadSpeed)
                     ↓ {{ $displayDownloadSpeed }} {{ $displayDownloadUnit }}
                     /
@@ -290,13 +290,13 @@
 
 {{-- ================= TABS ================= --}}
 <div>
-    <div class="flex gap-6 border-b border-slate-200 text-sm dark:border-slate-800">
+    <div class="flex gap-6 overflow-x-auto border-b border-slate-200 text-sm dark:border-slate-800">
         <button
             @click="setTab('subs')"
             :class="tab==='subs'
                 ? 'border-b-2 border-[#ff5437] text-[#ff5437]'
                 : 'text-slate-500 dark:text-slate-400'"
-            class="pb-3 font-medium transition"
+            class="pb-3 font-medium transition whitespace-nowrap"
         >
             Subscriptions
         </button>
@@ -306,7 +306,7 @@
             :class="tab==='devices'
                 ? 'border-b-2 border-[#ff5437] text-[#ff5437]'
                 : 'text-slate-500 dark:text-slate-400'"
-            class="pb-3 font-medium transition"
+            class="pb-3 font-medium transition whitespace-nowrap"
         >
             Devices
         </button>
@@ -318,253 +318,277 @@
         x-transition.opacity.duration.200ms
         class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
-        <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+        <div class="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
             <h3 class="font-semibold text-slate-800 dark:text-slate-100">Subscriptions</h3>
 
-            <button
-                type="button"
-                @click="openSubscribe = true"
-                class="inline-flex items-center gap-2 rounded-xl bg-[#ff5437] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#e94b32]"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
-                </svg>
-                Add Subscription
-            </button>
+            @if(Route::has('admin.customers.subscribe.store'))
+                @if(($plans ?? collect())->count() > 0)
+                    <button
+                        type="button"
+                        @click="openSubscribe = true"
+                        class="inline-flex items-center gap-2 rounded-xl bg-[#ff5437] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#e94b32]"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        Add Subscription
+                    </button>
+                @else
+                    <button
+                        type="button"
+                        disabled
+                        class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                        title="No plans available for this location"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        Add Subscription
+                    </button>
+                @endif
+            @endif
         </div>
 
-        <div class="max-h-[520px] overflow-auto">
-            <table class="min-w-[1200px] w-full text-sm">
-                <thead class="sticky top-0 z-10 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                    <tr>
-                        <th class="px-4 py-3 text-left font-semibold">Invoice ID</th>
-                        <th class="px-4 py-3 text-left font-semibold">Plan</th>
-                        <th class="px-4 py-3 text-left font-semibold">Released By</th>
-                        <th class="px-4 py-3 text-center font-semibold">Price</th>
-                        <th class="px-4 py-3 text-center font-semibold">Paid At</th>
-                        <th class="px-4 py-3 text-center font-semibold">Start</th>
-                        <th class="px-4 py-3 text-center font-semibold">Expire</th>
-                        <th class="px-4 py-3 text-center font-semibold">Remaining</th>
-                        <th class="px-4 py-3 text-center font-semibold">Status</th>
-                        <th class="px-4 py-3 text-center font-semibold">Actions</th>
-                    </tr>
-                </thead>
+        <div class="overflow-hidden">
+            <div class="w-full overflow-x-auto overflow-y-auto max-h-[520px] overscroll-contain">
+                <div class="min-w-[1200px]">
+                    <table class="w-full text-sm">
+                        <thead class="sticky top-0 z-10 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Invoice ID</th>
+                                <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Plan</th>
+                                <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Released By</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Price</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Paid At</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Start</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Expire</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Remaining</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Status</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Actions</th>
+                            </tr>
+                        </thead>
 
-                <tbody class="divide-y divide-slate-200 text-slate-700 dark:divide-slate-800 dark:text-slate-300">
-                @forelse($subscriptions as $sub)
-                    @php
-                        $isExpiredNow = $sub->expires_at && $sub->expires_at->isPast();
-                        $displayStatus = $isExpiredNow && $sub->status === 'active' ? 'expired' : $sub->status;
-                        $releasedBy = $sub->creator->name
-                            ?? $sub->user->name
-                            ?? $sub->createdBy->name
-                            ?? $sub->admin->name
-                            ?? 'System';
+                        <tbody class="divide-y divide-slate-200 text-slate-700 dark:divide-slate-800 dark:text-slate-300">
+                        @forelse($subscriptions as $sub)
+                            @php
+                                $isExpiredNow = $sub->expires_at && $sub->expires_at->isPast();
+                                $displayStatus = $isExpiredNow && $sub->status === 'active' ? 'expired' : $sub->status;
+                                $releasedBy = $sub->creator->name
+                                    ?? $sub->user->name
+                                    ?? $sub->createdBy->name
+                                    ?? $sub->admin->name
+                                    ?? 'System';
 
-                        $invoiceRecord = null;
+                                $invoiceRecord = null;
 
-                        if (!empty($sub->invoice_id) && $invoiceMap->has($sub->invoice_id)) {
-                            $invoiceRecord = $invoiceMap->get($sub->invoice_id);
-                        }
+                                if (!empty($sub->invoice_id) && $invoiceMap->has($sub->invoice_id)) {
+                                    $invoiceRecord = $invoiceMap->get($sub->invoice_id);
+                                }
 
-                        if (!$invoiceRecord) {
-                            $invoiceRecord = $allCustomerInvoices
-                                ->filter(function ($invoice) use ($sub) {
-                                    $priceMatches = round((float) ($invoice->amount ?? 0), 2) === round((float) ($sub->calculated_price ?? 0), 2);
+                                if (!$invoiceRecord) {
+                                    $invoiceRecord = $allCustomerInvoices
+                                        ->filter(function ($invoice) use ($sub) {
+                                            $priceMatches = round((float) ($invoice->amount ?? 0), 2) === round((float) ($sub->calculated_price ?? 0), 2);
 
-                                    if (!$priceMatches) {
-                                        return false;
-                                    }
+                                            if (!$priceMatches) {
+                                                return false;
+                                            }
 
-                                    if ($sub->starts_at && !empty($invoice->created_at)) {
-                                        try {
-                                            return \Carbon\Carbon::parse($invoice->created_at)->isSameDay($sub->starts_at);
-                                        } catch (\Throwable $e) {
-                                            return false;
-                                        }
-                                    }
+                                            if ($sub->starts_at && !empty($invoice->created_at)) {
+                                                try {
+                                                    return \Carbon\Carbon::parse($invoice->created_at)->isSameDay($sub->starts_at);
+                                                } catch (\Throwable $e) {
+                                                    return false;
+                                                }
+                                            }
 
-                                    return true;
-                                })
-                                ->sortByDesc('id')
-                                ->first();
-                        }
+                                            return true;
+                                        })
+                                        ->sortByDesc('id')
+                                        ->first();
+                                }
 
-                        if (!$invoiceRecord) {
-                            $invoiceRecord = $allCustomerInvoices
-                                ->filter(function ($invoice) use ($sub) {
-                                    return round((float) ($invoice->amount ?? 0), 2) === round((float) ($sub->calculated_price ?? 0), 2);
-                                })
-                                ->sortByDesc('id')
-                                ->first();
-                        }
+                                if (!$invoiceRecord) {
+                                    $invoiceRecord = $allCustomerInvoices
+                                        ->filter(function ($invoice) use ($sub) {
+                                            return round((float) ($invoice->amount ?? 0), 2) === round((float) ($sub->calculated_price ?? 0), 2);
+                                        })
+                                        ->sortByDesc('id')
+                                        ->first();
+                                }
 
-                        $invoiceCode = $invoiceRecord?->id
-                            ? 'INV-' . str_pad($invoiceRecord->id, 5, '0', STR_PAD_LEFT)
-                            : ($sub->invoice_id ? 'INV-' . str_pad($sub->invoice_id, 5, '0', STR_PAD_LEFT) : '—');
+                                $invoiceCode = $invoiceRecord?->id
+                                    ? 'INV-' . str_pad($invoiceRecord->id, 5, '0', STR_PAD_LEFT)
+                                    : ($sub->invoice_id ? 'INV-' . str_pad($sub->invoice_id, 5, '0', STR_PAD_LEFT) : '—');
 
-                        $paidAtValue = $invoiceRecord?->paid_at ?? $sub->paid_at ?? null;
-                    @endphp
-                    <tr class="transition hover:bg-slate-50 dark:hover:bg-slate-800/60 {{ $displayStatus === 'active' ? 'bg-green-50/60 dark:bg-green-950/10' : '' }}">
-                        <td class="px-4 py-3 font-medium text-slate-500 dark:text-slate-400">
-                            {{ $invoiceCode }}
-                        </td>
+                                $paidAtValue = $invoiceRecord?->paid_at ?? $sub->paid_at ?? null;
+                            @endphp
+                            <tr class="transition hover:bg-slate-50 dark:hover:bg-slate-800/60 {{ $displayStatus === 'active' ? 'bg-green-50/60 dark:bg-green-950/10' : '' }}">
+                                <td class="px-4 py-3 font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                                    {{ $invoiceCode }}
+                                </td>
 
-                        <td class="px-4 py-3 font-medium">
-                            {{ $sub->plan->name ?? '—' }}
-                        </td>
+                                <td class="px-4 py-3 font-medium whitespace-nowrap">
+                                    {{ $sub->plan->name ?? '—' }}
+                                </td>
 
-                        <td class="px-4 py-3">
-                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
-                                {{ $releasedBy }}
-                            </span>
-                        </td>
-
-                        <td class="px-4 py-3 text-center font-semibold text-green-600 dark:text-green-400">
-                            ${{ number_format($sub->calculated_price ?? $sub->price ?? 0, 2) }}
-                        </td>
-
-                        <td class="px-4 py-3 text-center">
-                            {{ $paidAtValue ? \Carbon\Carbon::parse($paidAtValue)->format('d M Y H:i') : '—' }}
-                        </td>
-
-                        <td class="px-4 py-3 text-center">
-                            {{ $sub->starts_at?->format('d M Y') ?? '—' }}
-                        </td>
-
-                        <td class="px-4 py-3 text-center">
-                            {{ $sub->expires_at?->format('d M Y') ?? '—' }}
-                        </td>
-
-                        <td class="px-4 py-3 text-center">
-                            @if(method_exists($sub, 'remainingLabel'))
-                                {{ $sub->remainingLabel() }}
-                            @elseif($sub->expires_at)
-                                {{ now()->diffForHumans($sub->expires_at, ['parts' => 2, 'short' => true]) }}
-                            @else
-                                —
-                            @endif
-                        </td>
-
-                        <td class="px-4 py-3 text-center">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium
-                                {{ $displayStatus === 'active'
-                                    ? 'bg-green-100 text-green-700 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
-                                    : ($displayStatus === 'expired'
-                                        ? 'bg-red-100 text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800'
-                                        : ($displayStatus === 'paused'
-                                            ? 'bg-yellow-100 text-yellow-700 ring-1 ring-inset ring-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:ring-yellow-800'
-                                            : 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700')) }}">
-                                {{ ucfirst($displayStatus) }}
-                            </span>
-                        </td>
-
-                        <td class="px-4 py-3">
-                            <div class="flex items-center justify-center gap-2">
-                                @if(Route::has('admin.subs.extend'))
-                                    <a
-                                        href="{{ route('admin.subs.extend', $sub) }}"
-                                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 transition hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
-                                        title="Extend"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v3H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3V6z" clip-rule="evenodd" />
-                                        </svg>
-                                    </a>
-                                @else
-                                    <span
-                                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-400 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-500"
-                                        title="Extend"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v3H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3V6z" clip-rule="evenodd" />
-                                        </svg>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
+                                        {{ $releasedBy }}
                                     </span>
-                                @endif
+                                </td>
 
-                                @if($sub->status === 'active' && Route::has('admin.subs.pause'))
-                                    <form method="POST" action="{{ route('admin.subs.pause', $sub) }}" class="inline">
-                                        @csrf
-                                        <button
-                                            type="submit"
-                                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-600 transition hover:bg-yellow-100 dark:border-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-300 dark:hover:bg-yellow-900/30"
-                                            title="Pause"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M5.75 4.75A.75.75 0 016.5 4h1a.75.75 0 01.75.75v10a.75.75 0 01-.75.75h-1a.75.75 0 01-.75-.75v-10zm6 0A.75.75 0 0112.5 4h1a.75.75 0 01.75.75v10a.75.75 0 01-.75.75h-1a.75.75 0 01-.75-.75v-10z" />
-                                            </svg>
-                                        </button>
-                                    </form>
-                                @elseif($sub->status === 'active')
-                                    <span
-                                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-400 dark:border-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-500"
-                                        title="Pause"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M5.75 4.75A.75.75 0 016.5 4h1a.75.75 0 01.75.75v10a.75.75 0 01-.75.75h-1a.75.75 0 01-.75-.75v-10zm6 0A.75.75 0 0112.5 4h1a.75.75 0 01.75.75v10a.75.75 0 01-.75.75h-1a.75.75 0 01-.75-.75v-10z" />
-                                        </svg>
-                                    </span>
-                                @endif
+                                <td class="px-4 py-3 text-center font-semibold text-green-600 dark:text-green-400 whitespace-nowrap">
+                                    ${{ number_format($sub->calculated_price ?? $sub->price ?? 0, 2) }}
+                                </td>
 
-                                @if($sub->status === 'paused' && Route::has('admin.subs.resume'))
-                                    <form method="POST" action="{{ route('admin.subs.resume', $sub) }}" class="inline">
-                                        @csrf
-                                        <button
-                                            type="submit"
-                                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-green-600 transition hover:bg-green-100 dark:border-green-900 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30"
-                                            title="Resume"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M6.5 5.5a1 1 0 011.53-.848l6 3.75a1 1 0 010 1.696l-6 3.75A1 1 0 016.5 13.25v-7.75z" />
-                                            </svg>
-                                        </button>
-                                    </form>
-                                @elseif($sub->status === 'paused')
-                                    <span
-                                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-green-400 dark:border-green-900 dark:bg-green-900/20 dark:text-green-500"
-                                        title="Resume"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M6.5 5.5a1 1 0 011.53-.848l6 3.75a1 1 0 010 1.696l-6 3.75A1 1 0 016.5 13.25v-7.75z" />
-                                        </svg>
-                                    </span>
-                                @endif
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    {{ $paidAtValue ? \Carbon\Carbon::parse($paidAtValue)->format('d M Y H:i') : '—' }}
+                                </td>
 
-                                @if(Route::has('admin.subs.cancel'))
-                                    <form method="POST" action="{{ route('admin.subs.cancel', $sub) }}" class="inline">
-                                        @csrf
-                                        <button
-                                            type="submit"
-                                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
-                                            title="Delete / Cancel"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M8.5 2a1 1 0 00-.894.553L7.382 3H5a1 1 0 000 2h.293l.853 10.236A2 2 0 008.14 17h3.72a2 2 0 001.994-1.764L14.707 5H15a1 1 0 100-2h-2.382l-.224-.447A1 1 0 0011.5 2h-3zM8 7a1 1 0 012 0v6a1 1 0 11-2 0V7zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V7a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                            </svg>
-                                        </button>
-                                    </form>
-                                @else
-                                    <span
-                                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-400 dark:border-red-900 dark:bg-red-900/20 dark:text-red-500"
-                                        title="Delete / Cancel"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M8.5 2a1 1 0 00-.894.553L7.382 3H5a1 1 0 000 2h.293l.853 10.236A2 2 0 008.14 17h3.72a2 2 0 001.994-1.764L14.707 5H15a1 1 0 100-2h-2.382l-.224-.447A1 1 0 0011.5 2h-3zM8 7a1 1 0 012 0v6a1 1 0 11-2 0V7zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V7a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                        </svg>
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    {{ $sub->starts_at?->format('d M Y') ?? '—' }}
+                                </td>
+
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    {{ $sub->expires_at?->format('d M Y') ?? '—' }}
+                                </td>
+
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    @if(method_exists($sub, 'remainingLabel'))
+                                        {{ $sub->remainingLabel() }}
+                                    @elseif($sub->expires_at)
+                                        {{ now()->diffForHumans($sub->expires_at, ['parts' => 2, 'short' => true]) }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium
+                                        {{ $displayStatus === 'active'
+                                            ? 'bg-green-100 text-green-700 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
+                                            : ($displayStatus === 'expired'
+                                                ? 'bg-red-100 text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800'
+                                                : ($displayStatus === 'paused'
+                                                    ? 'bg-yellow-100 text-yellow-700 ring-1 ring-inset ring-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:ring-yellow-800'
+                                                    : 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700')) }}">
+                                        {{ ucfirst($displayStatus) }}
                                     </span>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="10" class="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
-                            No subscriptions found
-                        </td>
-                    </tr>
-                @endforelse
-                </tbody>
-            </table>
+                                </td>
+
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="flex items-center justify-center gap-2">
+                                        @if(Route::has('admin.subs.extend'))
+                                            <a
+                                                href="{{ route('admin.subs.extend', $sub) }}"
+                                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 transition hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
+                                                title="Extend"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v3H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3V6z" clip-rule="evenodd" />
+                                                </svg>
+                                            </a>
+                                        @else
+                                            <span
+                                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-400 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-500"
+                                                title="Extend"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v3H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3V6z" clip-rule="evenodd" />
+                                                </svg>
+                                            </span>
+                                        @endif
+
+                                        @if($sub->status === 'active' && Route::has('admin.subs.pause'))
+                                            <form method="POST" action="{{ route('admin.subs.pause', $sub) }}" class="inline">
+                                                @csrf
+                                                <button
+                                                    type="submit"
+                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-600 transition hover:bg-yellow-100 dark:border-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-300 dark:hover:bg-yellow-900/30"
+                                                    title="Pause"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M5.75 4.75A.75.75 0 016.5 4h1a.75.75 0 01.75.75v10a.75.75 0 01-.75.75h-1a.75.75 0 01-.75-.75v-10zm6 0A.75.75 0 0112.5 4h1a.75.75 0 01.75.75v10a.75.75 0 01-.75.75h-1a.75.75 0 01-.75-.75v-10z" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        @elseif($sub->status === 'active')
+                                            <span
+                                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-400 dark:border-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-500"
+                                                title="Pause"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M5.75 4.75A.75.75 0 016.5 4h1a.75.75 0 01.75.75v10a.75.75 0 01-.75.75h-1a.75.75 0 01-.75-.75v-10zm6 0A.75.75 0 0112.5 4h1a.75.75 0 01.75.75v10a.75.75 0 01-.75.75h-1a.75.75 0 01-.75-.75v-10z" />
+                                                </svg>
+                                            </span>
+                                        @endif
+
+                                        @if($sub->status === 'paused' && Route::has('admin.subs.resume'))
+                                            <form method="POST" action="{{ route('admin.subs.resume', $sub) }}" class="inline">
+                                                @csrf
+                                                <button
+                                                    type="submit"
+                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-green-600 transition hover:bg-green-100 dark:border-green-900 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30"
+                                                    title="Resume"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M6.5 5.5a1 1 0 011.53-.848l6 3.75a1 1 0 010 1.696l-6 3.75A1 1 0 016.5 13.25v-7.75z" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        @elseif($sub->status === 'paused')
+                                            <span
+                                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-green-400 dark:border-green-900 dark:bg-green-900/20 dark:text-green-500"
+                                                title="Resume"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M6.5 5.5a1 1 0 011.53-.848l6 3.75a1 1 0 010 1.696l-6 3.75A1 1 0 016.5 13.25v-7.75z" />
+                                                </svg>
+                                            </span>
+                                        @endif
+
+                                        @if(Route::has('admin.subs.cancel'))
+                                            <form method="POST" action="{{ route('admin.subs.cancel', $sub) }}" class="inline">
+                                                @csrf
+                                                <button
+                                                    type="submit"
+                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                                                    title="Delete / Cancel"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M8.5 2a1 1 0 00-.894.553L7.382 3H5a1 1 0 000 2h.293l.853 10.236A2 2 0 008.14 17h3.72a2 2 0 001.994-1.764L14.707 5H15a1 1 0 100-2h-2.382l-.224-.447A1 1 0 0011.5 2h-3zM8 7a1 1 0 012 0v6a1 1 0 11-2 0V7zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V7a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span
+                                                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-400 dark:border-red-900 dark:bg-red-900/20 dark:text-red-500"
+                                                title="Delete / Cancel"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M8.5 2a1 1 0 00-.894.553L7.382 3H5a1 1 0 000 2h.293l.853 10.236A2 2 0 008.14 17h3.72a2 2 0 001.994-1.764L14.707 5H15a1 1 0 100-2h-2.382l-.224-.447A1 1 0 0011.5 2h-3zM8 7a1 1 0 012 0v6a1 1 0 11-2 0V7zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V7a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                                </svg>
+                                            </span>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="10" class="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
+                                    No subscriptions found
+                                </td>
+                            </tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="px-6 py-3 text-center text-xs text-slate-500 dark:text-slate-400 sm:hidden">
+                Swipe left/right inside the card to see full table
+            </div>
         </div>
     </div>
 
@@ -579,129 +603,137 @@
             <span class="text-xs text-slate-400 dark:text-slate-500">Auto refresh: 10s</span>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                    <tr>
-                        <th class="px-4 py-3 text-left font-semibold">Device</th>
-                        <th class="px-4 py-3 text-center font-semibold">IP</th>
-                        <th class="px-4 py-3 text-center font-semibold">Uptime</th>
-                        <th class="px-4 py-3 text-center font-semibold">Usage</th>
-                        <th class="px-4 py-3 text-center font-semibold">Last Online</th>
-                        <th class="px-4 py-3 text-center font-semibold">Status</th>
-                        <th class="px-4 py-3 text-center font-semibold">Action</th>
-                    </tr>
-                </thead>
+        <div class="overflow-hidden">
+            <div class="w-full overflow-x-auto overscroll-contain">
+                <div class="min-w-[920px]">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Device</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">IP</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Uptime</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Usage</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Last Online</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Status</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Action</th>
+                            </tr>
+                        </thead>
 
-                <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-                @forelse($devices as $d)
-                    @php
-                        $isOnline = is_null($d->acctstoptime);
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                        @forelse($devices as $d)
+                            @php
+                                $isOnline = is_null($d->acctstoptime);
 
-                        $uptime = $isOnline
-                            ? \Carbon\Carbon::parse($d->acctstarttime)->diffForHumans(now(), [
-                                'parts' => 2,
-                                'short' => true,
-                                'syntax' => \Carbon\Carbon::DIFF_ABSOLUTE,
-                            ])
-                            : \Carbon\Carbon::parse($d->acctstarttime)->diffForHumans($d->acctstoptime, [
-                                'parts' => 2,
-                                'short' => true,
-                                'syntax' => \Carbon\Carbon::DIFF_ABSOLUTE,
-                            ]);
+                                $uptime = $isOnline
+                                    ? \Carbon\Carbon::parse($d->acctstarttime)->diffForHumans(now(), [
+                                        'parts' => 2,
+                                        'short' => true,
+                                        'syntax' => \Carbon\Carbon::DIFF_ABSOLUTE,
+                                    ])
+                                    : \Carbon\Carbon::parse($d->acctstarttime)->diffForHumans($d->acctstoptime, [
+                                        'parts' => 2,
+                                        'short' => true,
+                                        'syntax' => \Carbon\Carbon::DIFF_ABSOLUTE,
+                                    ]);
 
-                        $usageBytes = (int) ($d->acctinputoctets ?? 0) + (int) ($d->acctoutputoctets ?? 0);
-                        $usageMb = $usageBytes / (1024 * 1024);
+                                $usageBytes = (int) ($d->acctinputoctets ?? 0) + (int) ($d->acctoutputoctets ?? 0);
+                                $usageMb = $usageBytes / (1024 * 1024);
 
-                        $mac = strtoupper(trim((string) ($d->callingstationid ?? '')));
-                        $prefix = substr(str_replace([':', '-'], '', $mac), 0, 6);
+                                $mac = strtoupper(trim((string) ($d->callingstationid ?? '')));
+                                $prefix = substr(str_replace([':', '-'], '', $mac), 0, 6);
 
-                        $deviceName = 'Device';
+                                $deviceName = 'Device';
 
-                        $applePrefixes = ['A4B1C1', 'F0D1A9', '3C2EFF', 'D89695', '2CF0A2', 'F4F15A'];
-                        $samsungPrefixes = ['8C8590', '5CF370', 'D857EF', 'E8E5D6', 'CCB0DA', '4C3C16', '46B218'];
-                        $xiaomiPrefixes = ['64CC2E', '28E347', 'F85B3B'];
-                        $huaweiPrefixes = ['E89526', 'C85B76', 'A4DB30'];
+                                $applePrefixes = ['A4B1C1', 'F0D1A9', '3C2EFF', 'D89695', '2CF0A2', 'F4F15A'];
+                                $samsungPrefixes = ['8C8590', '5CF370', 'D857EF', 'E8E5D6', 'CCB0DA', '4C3C16', '46B218'];
+                                $xiaomiPrefixes = ['64CC2E', '28E347', 'F85B3B'];
+                                $huaweiPrefixes = ['E89526', 'C85B76', 'A4DB30'];
 
-                        if (in_array($prefix, $applePrefixes, true)) {
-                            $deviceName = 'iPhone';
-                        } elseif (in_array($prefix, $samsungPrefixes, true)) {
-                            $deviceName = 'Samsung';
-                        } elseif (in_array($prefix, $xiaomiPrefixes, true)) {
-                            $deviceName = 'Xiaomi';
-                        } elseif (in_array($prefix, $huaweiPrefixes, true)) {
-                            $deviceName = 'Huawei';
-                        } elseif (!empty($mac)) {
-                            $deviceName = 'Device ' . substr(str_replace([':', '-'], '', $mac), -4);
-                        }
-                    @endphp
+                                if (in_array($prefix, $applePrefixes, true)) {
+                                    $deviceName = 'iPhone';
+                                } elseif (in_array($prefix, $samsungPrefixes, true)) {
+                                    $deviceName = 'Samsung';
+                                } elseif (in_array($prefix, $xiaomiPrefixes, true)) {
+                                    $deviceName = 'Xiaomi';
+                                } elseif (in_array($prefix, $huaweiPrefixes, true)) {
+                                    $deviceName = 'Huawei';
+                                } elseif (!empty($mac)) {
+                                    $deviceName = 'Device ' . substr(str_replace([':', '-'], '', $mac), -4);
+                                }
+                            @endphp
 
-                    <tr class="transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                        <td class="px-4 py-3">
-                            <div class="flex flex-col">
-                                <span class="font-medium text-slate-800 dark:text-slate-100">
-                                    {{ $deviceName }}
-                                </span>
-                                <span class="text-xs text-slate-500 dark:text-slate-400">
-                                    {{ $mac ?: 'No MAC' }}
-                                </span>
-                            </div>
-                        </td>
+                            <tr class="transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-col">
+                                        <span class="font-medium text-slate-800 dark:text-slate-100">
+                                            {{ $deviceName }}
+                                        </span>
+                                        <span class="text-xs text-slate-500 dark:text-slate-400">
+                                            {{ $mac ?: 'No MAC' }}
+                                        </span>
+                                    </div>
+                                </td>
 
-                        <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300">
-                            {{ $d->framedipaddress ?? '-' }}
-                        </td>
+                                <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                                    {{ $d->framedipaddress ?? '-' }}
+                                </td>
 
-                        <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300">
-                            {{ $uptime ?: '-' }}
-                        </td>
+                                <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                                    {{ $uptime ?: '-' }}
+                                </td>
 
-                        <td class="px-4 py-3 text-center font-medium text-green-600 dark:text-green-400">
-                            {{ number_format($usageMb, 2) }} MB
-                        </td>
+                                <td class="px-4 py-3 text-center font-medium text-green-600 dark:text-green-400 whitespace-nowrap">
+                                    {{ number_format($usageMb, 2) }} MB
+                                </td>
 
-                        <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300">
-                            {{ $d->acctstoptime ? \Carbon\Carbon::parse($d->acctstoptime)->format('d M Y H:i') : \Carbon\Carbon::parse($d->acctstarttime)->format('d M Y H:i') }}
-                        </td>
+                                <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                                    {{ $d->acctstoptime ? \Carbon\Carbon::parse($d->acctstoptime)->format('d M Y H:i') : \Carbon\Carbon::parse($d->acctstarttime)->format('d M Y H:i') }}
+                                </td>
 
-                        <td class="px-4 py-3 text-center">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium
-                                {{ $isOnline
-                                    ? 'bg-green-100 text-green-700 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
-                                    : 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700' }}">
-                                {{ $isOnline ? 'Connected' : 'Offline' }}
-                            </span>
-                        </td>
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium
+                                        {{ $isOnline
+                                            ? 'bg-green-100 text-green-700 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
+                                            : 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700' }}">
+                                        {{ $isOnline ? 'Connected' : 'Offline' }}
+                                    </span>
+                                </td>
 
-                        <td class="px-4 py-3 text-center">
-                            @if($isOnline && Route::has('admin.devices.disconnect') && !empty($d->framedipaddress))
-                                <form method="POST" action="{{ route('admin.devices.disconnect') }}" class="inline">
-                                    @csrf
-                                    <input type="hidden" name="username" value="{{ $customer->username }}">
-                                    <input type="hidden" name="ip" value="{{ $d->framedipaddress }}">
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    @if($isOnline && Route::has('admin.devices.disconnect') && !empty($d->framedipaddress))
+                                        <form method="POST" action="{{ route('admin.devices.disconnect') }}" class="inline">
+                                            @csrf
+                                            <input type="hidden" name="username" value="{{ $customer->username }}">
+                                            <input type="hidden" name="ip" value="{{ $d->framedipaddress }}">
 
-                                    <button
-                                        type="submit"
-                                        class="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
-                                        title="Disconnect Device"
-                                    >
-                                        Disconnect
-                                    </button>
-                                </form>
-                            @else
-                                <span class="text-xs text-slate-400 dark:text-slate-500">—</span>
-                            @endif
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" class="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
-                            No devices found
-                        </td>
-                    </tr>
-                @endforelse
-                </tbody>
-            </table>
+                                            <button
+                                                type="submit"
+                                                class="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                                                title="Disconnect Device"
+                                            >
+                                                Disconnect
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-xs text-slate-400 dark:text-slate-500">—</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-4 py-10 text-center text-gray-400 dark:text-slate-500">
+                                    No devices found
+                                </td>
+                            </tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="px-6 py-3 text-center text-xs text-slate-500 dark:text-slate-400 sm:hidden">
+                Swipe left/right inside the card to see full table
+            </div>
         </div>
     </div>
 
@@ -748,10 +780,13 @@
                         <select
                             name="plan_id"
                             class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#ff5437] focus:ring-2 focus:ring-[#ff5437]/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            {{ ($plans ?? collect())->count() === 0 ? 'disabled' : '' }}
                         >
-                            @foreach($plans as $plan)
+                            @forelse($plans ?? collect() as $plan)
                                 <option value="{{ $plan->id }}">{{ $plan->name }} – ${{ $plan->price }}</option>
-                            @endforeach
+                            @empty
+                                <option value="">No plans available for this location</option>
+                            @endforelse
                         </select>
                     </div>
 
@@ -793,7 +828,7 @@
                         </button>
                         <button
                             type="submit"
-                            class="inline-flex items-center gap-2 rounded-xl bg-[#ff5437] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#e94b32]"
+                            class="inline-flex items-center gap-2 rounded-xl bg-[#ff5437] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#e94b32] {{ ($plans ?? collect())->count() === 0 ? 'opacity-50 cursor-not-allowed pointer-events-none' : '' }}"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />

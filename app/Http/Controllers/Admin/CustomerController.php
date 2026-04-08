@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class CustomerController extends Controller
 {
@@ -183,10 +184,29 @@ class CustomerController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        $plansQuery = Subscription::query()->where('status', 'active');
+
+        if (Schema::hasColumn('subscriptions', 'location_id')) {
+            if ($this->isSuperAdmin()) {
+                $plansQuery->where('location_id', $customer->location_id);
+            } else {
+                $plansQuery->whereIn('location_id', $this->getAssignedLocationIds())
+                    ->where('location_id', $customer->location_id);
+            }
+        }
+
+        if (!$this->isSuperAdmin() && Schema::hasColumn('subscriptions', 'created_by')) {
+            $plansQuery->where('created_by', auth()->id());
+        }
+
+        $plans = $plansQuery
+            ->orderBy('name')
+            ->get();
+
         return view('admin.customers.show', [
             'customer'      => $customer,
             'subscriptions' => $subscriptions,
-            'plans'         => Subscription::where('status', 'active')->get(),
+            'plans'         => $plans,
         ]);
     }
 

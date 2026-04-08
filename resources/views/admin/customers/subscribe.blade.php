@@ -35,27 +35,36 @@
                     <select
                         name="plan_id"
                         required
+                        {{ ($plans ?? collect())->count() === 0 ? 'disabled' : '' }}
                         class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-orange-900/30"
                     >
-                        @foreach($plans as $plan)
-                            <option value="{{ $plan->id }}">
+                        @forelse($plans as $plan)
+                            <option value="{{ $plan->id }}" @selected(old('plan_id') == $plan->id)>
                                 {{ $plan->name }} — ${{ $plan->price }}
                             </option>
-                        @endforeach
+                        @empty
+                            <option value="">No plans available for this location</option>
+                        @endforelse
                     </select>
+
+                    @if(($plans ?? collect())->count() === 0)
+                        <p class="mt-2 text-xs text-red-500 dark:text-red-400">
+                            This customer location has no active subscription plans.
+                        </p>
+                    @endif
                 </div>
 
-                {{-- UNIT --}}
+                {{-- TYPE --}}
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
                         Duration Type
                     </label>
                     <select
-                        name="unit"
+                        name="type"
                         class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-orange-900/30"
                     >
-                        <option value="hours">Hours</option>
-                        <option value="days" selected>Days</option>
+                        <option value="hours" @selected(old('type') === 'hours')>Hours</option>
+                        <option value="days" @selected(old('type', 'days') === 'days')>Days</option>
                     </select>
                 </div>
 
@@ -69,6 +78,7 @@
                         name="value"
                         min="1"
                         required
+                        value="{{ old('value') }}"
                         placeholder="Enter number"
                         class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-orange-900/30"
                     >
@@ -85,7 +95,8 @@
 
                     <button
                         type="submit"
-                        class="w-1/2 rounded-lg bg-orange-500 py-2 text-sm font-medium text-white transition hover:bg-orange-600"
+                        {{ ($plans ?? collect())->count() === 0 ? 'disabled' : '' }}
+                        class="w-1/2 rounded-lg bg-orange-500 py-2 text-sm font-medium text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         Add
                     </button>

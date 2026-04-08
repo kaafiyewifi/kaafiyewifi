@@ -93,7 +93,19 @@ class CustomerSubscriptionController extends Controller
 
     public function create(Customer $customer)
     {
+        $this->authorizeCustomerAccess($customer);
+
         $plans = Subscription::where('status', 'active')
+            ->when($this->hasSubscriptionLocationColumn() && !$this->isSuperAdmin(), function ($query) use ($customer) {
+                $locationIds = $this->getAssignedLocationIds();
+
+                $query->whereIn('location_id', $locationIds)
+                    ->where('location_id', $customer->location_id);
+
+                if ($this->hasSubscriptionCreatedByColumn()) {
+                    $query->where('created_by', auth()->id());
+                }
+            })
             ->orderBy('name')
             ->get();
 
@@ -102,6 +114,8 @@ class CustomerSubscriptionController extends Controller
 
     public function store(Customer $customer, Request $request)
     {
+        $this->authorizeCustomerAccess($customer);
+
         $data = $request->validate([
             'plan_id' => 'required|exists:subscriptions,id',
             'type'    => 'required|in:days,hours',
@@ -125,7 +139,30 @@ class CustomerSubscriptionController extends Controller
                 ]);
         }
 
-        $plan = Subscription::findOrFail($data['plan_id']);
+        $planQuery = Subscription::query()->whereKey($data['plan_id']);
+
+        if ($this->hasSubscriptionLocationColumn() && !$this->isSuperAdmin()) {
+            $locationIds = $this->getAssignedLocationIds();
+
+            $planQuery->whereIn('location_id', $locationIds)
+                ->where('location_id', $customer->location_id);
+
+            if ($this->hasSubscriptionCreatedByColumn()) {
+                $planQuery->where('created_by', auth()->id());
+            }
+        }
+
+        $plan = $planQuery->first();
+
+        if (!$plan) {
+            return redirect()
+                ->route('admin.customers.show', $customer)
+                ->with('toast', [
+                    'type' => 'error',
+                    'message' => 'Plan-kan kuma xirna admin-kan ama location-kan',
+                ]);
+        }
+
         $value = (int) $data['value'];
 
         if ($data['type'] === 'days') {
@@ -201,5 +238,46 @@ class CustomerSubscriptionController extends Controller
         }
     }
 
-    // (ISLA UPDATE ayaa lagu sameeyay functions kale sida extend, resume iwm — dhammaan waxay gudbinayaan $customer->type)
+    private function isSuperAdmin(): bool
+    {
+        return auth()->check()
+            && method_exists(auth()->user(), 'hasRole')
+            && auth()->user()->hasRole('super_admin');
+    }
+
+    private function getAssignedLocationIds()
+    {
+        $user = auth()->user();
+
+        if (!$user || !method_exists($user, 'locations')) {
+            return collect();
+        }
+
+        return $user->locations()->pluck('locations.id');
+    }
+
+    private function authorizeCustomerAccess(Customer $customer): void
+    {
+        if ($this->isSuperAdmin()) {
+            return;
+        }
+
+        abort_unless(
+            $this->getAssignedLocationIds()->contains($customer->location_id),
+            403,
+            'Unauthorized access to this customer.'
+        );
+    }
+
+    private function hasSubscriptionLocationColumn(): bool
+    {
+        return Schema::hasTable('subscriptions')
+            && Schema::hasColumn('subscriptions', 'location_id');
+    }
+
+    private function hasSubscriptionCreatedByColumn(): bool
+    {
+        return Schema::hasTable('subscriptions')
+            && Schema::hasColumn('subscriptions', 'created_by');
+    }
 }

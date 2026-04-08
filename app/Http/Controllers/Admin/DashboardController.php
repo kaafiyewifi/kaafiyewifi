@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -29,7 +30,9 @@ class DashboardController extends Controller
 
     private function getTotalCustomers(): int
     {
-        if (!Schema::hasTable('customers')) return 0;
+        if (!Schema::hasTable('customers')) {
+            return 0;
+        }
 
         $query = DB::table('customers');
 
@@ -76,35 +79,56 @@ class DashboardController extends Controller
             return 0;
         }
 
-        return (int) DB::connection('radius')
+        $query = DB::connection('radius')
             ->table('radacct')
-            ->whereNull('acctstoptime')
-            ->count();
+            ->whereNull('acctstoptime');
+
+        if (!$this->isSuperAdmin()) {
+            $allowedUsernames = $this->getAssignedCustomerUsernames();
+
+            if ($allowedUsernames->isEmpty()) {
+                return 0;
+            }
+
+            $query->whereIn('username', $allowedUsernames);
+        }
+
+        return (int) $query->count();
     }
 
     private function getTodaySales(): float
     {
-        if (!Schema::hasTable('customer_subscriptions')) {
+        if (!Schema::hasTable('customer_subscriptions') || !Schema::hasTable('customers')) {
             return 0;
         }
 
-        return (float) DB::table('customer_subscriptions')
-            ->where('status', 'active')
-            ->whereDate('created_at', Carbon::today())
-            ->sum('calculated_price');
+        $query = DB::table('customer_subscriptions')
+            ->join('customers', 'customer_subscriptions.customer_id', '=', 'customers.id')
+            ->whereDate('customer_subscriptions.created_at', Carbon::today());
+
+        if (!$this->isSuperAdmin()) {
+            $query->whereIn('customers.location_id', $this->getAssignedLocationIds());
+        }
+
+        return (float) $query->sum('customer_subscriptions.calculated_price');
     }
 
     private function getMonthlySales(): float
     {
-        if (!Schema::hasTable('customer_subscriptions')) {
+        if (!Schema::hasTable('customer_subscriptions') || !Schema::hasTable('customers')) {
             return 0;
         }
 
-        return (float) DB::table('customer_subscriptions')
-            ->where('status', 'active')
-            ->whereYear('created_at', Carbon::now()->year)
-            ->whereMonth('created_at', Carbon::now()->month)
-            ->sum('calculated_price');
+        $query = DB::table('customer_subscriptions')
+            ->join('customers', 'customer_subscriptions.customer_id', '=', 'customers.id')
+            ->whereYear('customer_subscriptions.created_at', Carbon::now()->year)
+            ->whereMonth('customer_subscriptions.created_at', Carbon::now()->month);
+
+        if (!$this->isSuperAdmin()) {
+            $query->whereIn('customers.location_id', $this->getAssignedLocationIds());
+        }
+
+        return (float) $query->sum('customer_subscriptions.calculated_price');
     }
 
     private function getConnectedDevices(): array
@@ -113,9 +137,10 @@ class DashboardController extends Controller
             return [];
         }
 
-        return DB::connection('radius')
+        $query = DB::connection('radius')
             ->table('radacct')
             ->select([
+                'username',
                 'framedipaddress',
                 'callingstationid',
                 'acctstarttime',
@@ -124,7 +149,20 @@ class DashboardController extends Controller
                 'acctoutputoctets',
             ])
             ->whereNotNull('callingstationid')
-            ->orderByDesc('acctstarttime')
+            ->whereNull('acctstoptime')
+            ->orderByDesc('acctstarttime');
+
+        if (!$this->isSuperAdmin()) {
+            $allowedUsernames = $this->getAssignedCustomerUsernames();
+
+            if ($allowedUsernames->isEmpty()) {
+                return [];
+            }
+
+            $query->whereIn('username', $allowedUsernames);
+        }
+
+        return $query
             ->limit(10)
             ->get()
             ->map(function ($row) {
@@ -139,7 +177,8 @@ class DashboardController extends Controller
                         ? Carbon::parse($row->acctstarttime)->format('d M Y H:i')
                         : '-',
                 ];
-            })->toArray();
+            })
+            ->toArray();
     }
 
     private function getIncomeChart(): array
@@ -153,17 +192,31 @@ class DashboardController extends Controller
 
             $labels[] = $day->format('D');
 
-            $today[] = (float) DB::table('customer_subscriptions')
-                ->where('status', 'active')
-                ->whereDate('created_at', $day->toDateString())
-                ->sum('calculated_price');
+            if (!Schema::hasTable('customer_subscriptions') || !Schema::hasTable('customers')) {
+                $today[] = 0;
+                $monthly[] = 0;
+                continue;
+            }
 
-            $monthly[] = (float) DB::table('customer_subscriptions')
-                ->where('status', 'active')
-                ->whereYear('created_at', $day->year)
-                ->whereMonth('created_at', $day->month)
-                ->whereDate('created_at', '<=', $day->toDateString())
-                ->sum('calculated_price');
+            $todayQuery = DB::table('customer_subscriptions')
+                ->join('customers', 'customer_subscriptions.customer_id', '=', 'customers.id')
+                ->whereDate('customer_subscriptions.created_at', $day->toDateString());
+
+            $monthlyQuery = DB::table('customer_subscriptions')
+                ->join('customers', 'customer_subscriptions.customer_id', '=', 'customers.id')
+                ->whereYear('customer_subscriptions.created_at', $day->year)
+                ->whereMonth('customer_subscriptions.created_at', $day->month)
+                ->whereDate('customer_subscriptions.created_at', '<=', $day->toDateString());
+
+            if (!$this->isSuperAdmin()) {
+                $locationIds = $this->getAssignedLocationIds();
+
+                $todayQuery->whereIn('customers.location_id', $locationIds);
+                $monthlyQuery->whereIn('customers.location_id', $locationIds);
+            }
+
+            $today[] = (float) $todayQuery->sum('customer_subscriptions.calculated_price');
+            $monthly[] = (float) $monthlyQuery->sum('customer_subscriptions.calculated_price');
         }
 
         return [
@@ -182,19 +235,38 @@ class DashboardController extends Controller
             'storage' => [0],
         ];
 
-        if (!Schema::hasTable('router_metrics')) {
+        if (!Schema::hasTable('router_metrics') || !Schema::hasTable('routers')) {
             return $default;
         }
 
-        $rows = DB::table('router_metrics')
-            ->orderByDesc('collected_at')
+        $query = DB::table('router_metrics')
+            ->join('routers', 'routers.id', '=', 'router_metrics.router_id')
+            ->select([
+                'router_metrics.router_id',
+                'router_metrics.cpu_load',
+                'router_metrics.total_memory',
+                'router_metrics.free_memory',
+                'router_metrics.total_hdd_space',
+                'router_metrics.free_hdd_space',
+                'router_metrics.collected_at',
+                'routers.name',
+            ])
+            ->orderByDesc('router_metrics.collected_at');
+
+        if (!$this->isSuperAdmin()) {
+            $query->whereIn('routers.location_id', $this->getAssignedLocationIds());
+        }
+
+        $rows = $query
             ->limit(100)
             ->get()
             ->groupBy('router_id')
             ->map(fn ($items) => $items->first())
             ->values();
 
-        if ($rows->isEmpty()) return $default;
+        if ($rows->isEmpty()) {
+            return $default;
+        }
 
         $labels = [];
         $cpu = [];
@@ -202,9 +274,11 @@ class DashboardController extends Controller
         $storage = [];
 
         foreach ($rows as $index => $row) {
-            if (count($labels) >= 5) break;
+            if (count($labels) >= 5) {
+                break;
+            }
 
-            $labels[] = 'R' . ($index + 1);
+            $labels[] = $row->name ?: 'R' . ($index + 1);
             $cpu[] = round((float) ($row->cpu_load ?? 0), 2);
 
             $ram[] = !empty($row->total_memory)
@@ -224,6 +298,26 @@ class DashboardController extends Controller
         ];
     }
 
+    private function getAssignedCustomerUsernames(): Collection
+    {
+        if (!Schema::hasTable('customers') || !Schema::hasColumn('customers', 'username')) {
+            return collect();
+        }
+
+        $locationIds = $this->getAssignedLocationIds();
+
+        if ($locationIds->isEmpty()) {
+            return collect();
+        }
+
+        return DB::table('customers')
+            ->whereIn('location_id', $locationIds)
+            ->whereNotNull('username')
+            ->pluck('username')
+            ->filter()
+            ->values();
+    }
+
     private function radiusTableExists(string $table): bool
     {
         try {
@@ -235,7 +329,9 @@ class DashboardController extends Controller
 
     private function formatSeconds(int $seconds): string
     {
-        if ($seconds <= 0) return '-';
+        if ($seconds <= 0) {
+            return '-';
+        }
 
         $h = intdiv($seconds, 3600);
         $m = intdiv($seconds % 3600, 60);
@@ -245,7 +341,9 @@ class DashboardController extends Controller
 
     private function formatBytes(int $bytes): string
     {
-        if ($bytes <= 0) return '0 B';
+        if ($bytes <= 0) {
+            return '0 B';
+        }
 
         $units = ['B', 'KB', 'MB', 'GB'];
         $i = min((int) floor(log($bytes, 1024)), count($units) - 1);
@@ -255,10 +353,12 @@ class DashboardController extends Controller
 
     private function isSuperAdmin(): bool
     {
-        return auth()->check() && method_exists(auth()->user(), 'hasRole') && auth()->user()->hasRole('super_admin');
+        return auth()->check()
+            && method_exists(auth()->user(), 'hasRole')
+            && auth()->user()->hasRole('super_admin');
     }
 
-    private function getAssignedLocationIds()
+    private function getAssignedLocationIds(): Collection
     {
         $user = auth()->user();
 

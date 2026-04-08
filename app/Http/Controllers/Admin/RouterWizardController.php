@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Location;
 use App\Models\Router;
 use App\Services\Routers\ProvisionTokenService;
 use Illuminate\Http\Request;
@@ -21,7 +22,16 @@ class RouterWizardController extends Controller
      */
     public function stage1()
     {
-        return view('admin.routers.wizard.stage1');
+        $user = auth()->user();
+
+        $locations = $user && method_exists($user, 'hasRole') && $user->hasRole('super_admin')
+            ? Location::query()->orderBy('name')->get(['id', 'name'])
+            : $user->locations()
+                ->select('locations.id', 'locations.name')
+                ->orderBy('name')
+                ->get();
+
+        return view('admin.routers.wizard.stage1', compact('locations'));
     }
 
     /**
@@ -30,13 +40,29 @@ class RouterWizardController extends Controller
     public function storeStage1(Request $request)
     {
         $data = $request->validate([
-            'identity' => ['required', 'string', 'max:120'],
+            'identity'    => ['required', 'string', 'max:120'],
+            'location_id' => ['nullable', 'integer', 'exists:locations,id'],
         ]);
 
+        $user = auth()->user();
         $identity = trim($data['identity']);
         $pending  = $this->pendingStatusValue();
 
-        $router = Router::create($this->buildRouterPayload($identity, $pending));
+        $locationId = null;
+
+        if ($user && method_exists($user, 'hasRole') && $user->hasRole('super_admin')) {
+            $locationId = $data['location_id'] ?? null;
+        } else {
+            $locationId = $user->locations()->value('locations.id');
+
+            if (!$locationId) {
+                return back()
+                    ->withErrors(['location_id' => 'Admin-kan location looma xirin.'])
+                    ->withInput();
+            }
+        }
+
+        $router = Router::create($this->buildRouterPayload($identity, $pending, $locationId));
 
         $this->tryLogRouterCreatedEvent($router);
 
@@ -50,7 +76,6 @@ class RouterWizardController extends Controller
     {
         $router->refresh();
 
-        // If already connected, jump to step 3
         if ($this->isConnected($router)) {
             return redirect()->route('admin.routers.service-setup', $router);
         }
@@ -59,7 +84,6 @@ class RouterWizardController extends Controller
             ?? ($router->name ?? null)
             ?? ('Router-' . $router->id);
 
-        // Create one-time token
         $data  = $this->tokens->create($router, 'v1', (int) config('app.provision_token_minutes', 20));
         $token = $data['token'] ?? null;
 
@@ -67,12 +91,10 @@ class RouterWizardController extends Controller
             return back()->with('error', 'Unable to generate provisioning token.');
         }
 
-        // Force provisioning to app URL (recommended)
-        $base = rtrim((string) config('app.url'), '/'); // https://app.kaafiye.online
+        $base = rtrim((string) config('app.url'), '/');
         $path = route('provision.script', ['token' => $token], false);
         $provisionUrl = $base . $path;
 
-        // MikroTik command (RouterOS v7)
         $command = <<<MIKROTIK
 /tool fetch mode=https check-certificate=no output=file \\
 url="$provisionUrl" \\
@@ -132,7 +154,6 @@ MIKROTIK;
             ? in_array(strtolower((string) $status), $connectedValues, true)
             : false;
 
-        // last_seen_at might be Carbon, string, or null
         $byLastSeen = false;
         $lastSeen = $this->toCarbon($router->last_seen_at);
 
@@ -145,8 +166,13 @@ MIKROTIK;
 
     private function toCarbon(mixed $value): ?Carbon
     {
-        if (!$value) return null;
-        if ($value instanceof Carbon) return $value;
+        if (!$value) {
+            return null;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value;
+        }
 
         if (is_string($value)) {
             try {
@@ -162,6 +188,7 @@ MIKROTIK;
     private function asDateTimeString(mixed $value): ?string
     {
         $c = $this->toCarbon($value);
+
         return $c ? $c->toDateTimeString() : null;
     }
 
@@ -180,23 +207,50 @@ MIKROTIK;
         return 'pending';
     }
 
-    private function buildRouterPayload(string $identity, string $pending): array
+    private function buildRouterPayload(string $identity, string $pending, ?int $locationId = null): array
     {
         $table = (new Router())->getTable();
         $payload = [];
 
-        if (Schema::hasColumn($table, 'identity')) $payload['identity'] = $identity;
-        if (Schema::hasColumn($table, 'name'))     $payload['name'] = $identity;
+        if (Schema::hasColumn($table, 'identity')) {
+            $payload['identity'] = $identity;
+        }
 
-        if (Schema::hasColumn($table, 'status')) $payload['status'] = $pending;
-        if (Schema::hasColumn($table, 'provisioning_status')) $payload['provisioning_status'] = $pending;
+        if (Schema::hasColumn($table, 'name')) {
+            $payload['name'] = $identity;
+        }
 
-        if (Schema::hasColumn($table, 'api_port')) $payload['api_port'] = 8728;
-        if (Schema::hasColumn($table, 'use_tls'))  $payload['use_tls'] = false;
-        if (Schema::hasColumn($table, 'is_active')) $payload['is_active'] = true;
+        if (Schema::hasColumn($table, 'location_id')) {
+            $payload['location_id'] = $locationId;
+        }
 
-        if (Schema::hasColumn($table, 'uuid')) $payload['uuid'] = (string) Str::uuid();
-        if (Schema::hasColumn($table, 'provision_token')) $payload['provision_token'] = Str::random(64);
+        if (Schema::hasColumn($table, 'status')) {
+            $payload['status'] = $pending;
+        }
+
+        if (Schema::hasColumn($table, 'provisioning_status')) {
+            $payload['provisioning_status'] = $pending;
+        }
+
+        if (Schema::hasColumn($table, 'api_port')) {
+            $payload['api_port'] = 8728;
+        }
+
+        if (Schema::hasColumn($table, 'use_tls')) {
+            $payload['use_tls'] = false;
+        }
+
+        if (Schema::hasColumn($table, 'is_active')) {
+            $payload['is_active'] = true;
+        }
+
+        if (Schema::hasColumn($table, 'uuid')) {
+            $payload['uuid'] = (string) Str::uuid();
+        }
+
+        if (Schema::hasColumn($table, 'provision_token')) {
+            $payload['provision_token'] = Str::random(64);
+        }
 
         return $payload;
     }
@@ -204,8 +258,13 @@ MIKROTIK;
     private function tryLogRouterCreatedEvent(Router $router): void
     {
         try {
-            if (!Schema::hasTable('router_events')) return;
-            if (!method_exists($router, 'events')) return;
+            if (!Schema::hasTable('router_events')) {
+                return;
+            }
+
+            if (!method_exists($router, 'events')) {
+                return;
+            }
 
             $router->events()->create([
                 'type' => 'router.created',
@@ -215,7 +274,6 @@ MIKROTIK;
                 ],
             ]);
         } catch (\Throwable) {
-            // ignore
         }
     }
 }

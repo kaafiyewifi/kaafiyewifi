@@ -26,7 +26,7 @@
     }
 @endphp
 
-<div class="space-y-6">
+<div class="space-y-6 overflow-x-hidden">
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -50,7 +50,7 @@
         </div>
     </div>
 
-    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div class="border-b border-slate-200 p-5 dark:border-slate-800">
             <form method="GET" class="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <div>
@@ -116,83 +116,89 @@
         </div>
 
         <div class="p-5">
-            <div class="rounded-2xl border border-slate-200 dark:border-slate-800">
-                <div class="max-h-[520px] overflow-auto rounded-2xl">
-                    <table class="min-w-[980px] w-full text-sm">
-                        <thead class="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
-                            <tr class="text-left text-slate-600 dark:text-slate-300">
-                                <th class="px-4 py-3">Invoice</th>
-                                <th class="px-4 py-3">Customer</th>
-                                <th class="px-4 py-3">Phone</th>
-                                <th class="px-4 py-3 text-center">Amount</th>
-                                <th class="px-4 py-3 text-center">Status</th>
-                                <th class="px-4 py-3 text-center">Paid At</th>
-                                <th class="px-4 py-3 text-center">Created</th>
-                                <th class="px-4 py-3 text-center">Action</th>
-                            </tr>
-                        </thead>
-
-                        <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-                            @forelse($invoices as $invoice)
-                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                                    <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                                        INV-{{ str_pad($invoice->id, 5, '0', STR_PAD_LEFT) }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-slate-900 dark:text-white whitespace-nowrap">
-                                        {{ $invoice->full_name ?? $invoice->name ?? '—' }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-slate-900 dark:text-white whitespace-nowrap">
-                                        {{ $invoice->phone ?? '—' }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-center font-semibold text-green-600 dark:text-green-400 whitespace-nowrap">
-                                        ${{ number_format((float) $invoice->amount, 2) }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-center whitespace-nowrap">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium
-                                            {{ $invoice->status === 'paid'
-                                                ? 'bg-green-100 text-green-700 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
-                                                : ($invoice->status === 'pending'
-                                                    ? 'bg-yellow-100 text-yellow-700 ring-1 ring-inset ring-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:ring-yellow-800'
-                                                    : 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700') }}">
-                                            {{ ucfirst($invoice->status) }}
-                                        </span>
-                                    </td>
-
-                                    <td class="px-4 py-3 text-center text-slate-900 dark:text-white whitespace-nowrap">
-                                        {{ $invoice->paid_at ? \Carbon\Carbon::parse($invoice->paid_at)->format('d M Y H:i') : '—' }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-center text-slate-900 dark:text-white whitespace-nowrap">
-                                        {{ $invoice->created_at ? \Carbon\Carbon::parse($invoice->created_at)->format('d M Y H:i') : '—' }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-center whitespace-nowrap">
-                                        <a
-                                            href="{{ route('admin.invoices.show', $invoice->id) }}"
-                                            class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
-                                        >
-                                            View
-                                        </a>
-                                    </td>
+            <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div class="w-full overflow-x-auto overflow-y-auto max-h-[520px] overscroll-contain rounded-2xl">
+                    <div class="min-w-[980px]">
+                        <table class="w-full text-sm">
+                            <thead class="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
+                                <tr class="text-left text-slate-600 dark:text-slate-300">
+                                    <th class="px-4 py-3 whitespace-nowrap">Invoice</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">Customer</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">Phone</th>
+                                    <th class="px-4 py-3 text-center whitespace-nowrap">Amount</th>
+                                    <th class="px-4 py-3 text-center whitespace-nowrap">Status</th>
+                                    <th class="px-4 py-3 text-center whitespace-nowrap">Paid At</th>
+                                    <th class="px-4 py-3 text-center whitespace-nowrap">Created</th>
+                                    <th class="px-4 py-3 text-center whitespace-nowrap">Action</th>
                                 </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="8" class="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
-                                        No invoices found
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
+
+                            <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                                @forelse($invoices as $invoice)
+                                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                                        <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                                            INV-{{ str_pad($invoice->id, 5, '0', STR_PAD_LEFT) }}
+                                        </td>
+
+                                        <td class="px-4 py-3 text-slate-900 dark:text-white whitespace-nowrap">
+                                            {{ $invoice->full_name ?? $invoice->name ?? '—' }}
+                                        </td>
+
+                                        <td class="px-4 py-3 text-slate-900 dark:text-white whitespace-nowrap">
+                                            {{ $invoice->phone ?? '—' }}
+                                        </td>
+
+                                        <td class="px-4 py-3 text-center font-semibold text-green-600 dark:text-green-400 whitespace-nowrap">
+                                            ${{ number_format((float) $invoice->amount, 2) }}
+                                        </td>
+
+                                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium
+                                                {{ $invoice->status === 'paid'
+                                                    ? 'bg-green-100 text-green-700 ring-1 ring-inset ring-green-200 dark:bg-green-900/30 dark:text-green-300 dark:ring-green-800'
+                                                    : ($invoice->status === 'pending'
+                                                        ? 'bg-yellow-100 text-yellow-700 ring-1 ring-inset ring-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:ring-yellow-800'
+                                                        : 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700') }}">
+                                                {{ ucfirst($invoice->status) }}
+                                            </span>
+                                        </td>
+
+                                        <td class="px-4 py-3 text-center text-slate-900 dark:text-white whitespace-nowrap">
+                                            {{ $invoice->paid_at ? \Carbon\Carbon::parse($invoice->paid_at)->format('d M Y H:i') : '—' }}
+                                        </td>
+
+                                        <td class="px-4 py-3 text-center text-slate-900 dark:text-white whitespace-nowrap">
+                                            {{ $invoice->created_at ? \Carbon\Carbon::parse($invoice->created_at)->format('d M Y H:i') : '—' }}
+                                        </td>
+
+                                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                                            <a
+                                                href="{{ route('admin.invoices.show', $invoice->id) }}"
+                                                class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
+                                            >
+                                                View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="8" class="px-4 py-12 text-center text-slate-400 dark:text-slate-500">
+                                            No invoices found
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+            </div>
+
+            <div class="mt-3 text-center text-xs text-slate-500 dark:text-slate-400 sm:hidden">
+                Swipe left/right inside the card to see full table
             </div>
         </div>
 
-        <div class="border-t border-slate-200 px-5 py-4 dark:border-slate-800">
+        <div class="border-t border-slate-200 px-5 py-4 dark:border-slate-800 overflow-x-auto">
             {{ $invoices->links() }}
         </div>
     </div>

@@ -13,6 +13,8 @@ class Subscription extends Model
      * MASS ASSIGNABLE
      * =========================== */
     protected $fillable = [
+        'location_id',
+        'created_by',
         'name',
         'price',
         'base_days',
@@ -38,6 +40,16 @@ class Subscription extends Model
     public function customerSubscriptions()
     {
         return $this->hasMany(CustomerSubscription::class, 'subscription_id');
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /* ===========================
