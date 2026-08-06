@@ -37,6 +37,13 @@ class Customer extends Model
         'upload_unit' => 'string',
     ];
 
+    // 🔥 DEFAULT VALUES (STABILITY FIX)
+    protected $attributes = [
+        'device_limit' => 1,
+        'status' => 'active',
+        'speed_override_enabled' => false,
+    ];
+
     public function location()
     {
         return $this->belongsTo(Location::class);
@@ -60,5 +67,11 @@ class Customer extends Model
     public function subscriptions()
     {
         return $this->hasMany(CustomerSubscription::class);
+    }
+
+    // 🔥 SAFE SPEED CHECK (USED BY SERVICES)
+    public function hasSpeedOverride(): bool
+    {
+        return $this->speed_override_enabled && !is_null($this->download_speed);
     }
 }

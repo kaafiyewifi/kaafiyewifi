@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Schema;
 use App\Services\Routers\Contracts\RouterApi;
 use App\Services\Routers\Clients\Pear2RouterApi;
 
+// 🔥 NEW IMPORTS (IMPORTANT)
+use App\Models\Customer;
+use App\Observers\CustomerObserver;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -32,5 +36,8 @@ class AppServiceProvider extends ServiceProvider
                 ->letters()
                 ->numbers();
         });
+
+        // 🔥 CRITICAL: AUTO SYNC CUSTOMER → RADIUS
+        Customer::observe(CustomerObserver::class);
     }
 }
