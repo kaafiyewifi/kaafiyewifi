@@ -28,3 +28,7 @@ yarn-error.log
 /.zed
 backup.tar.gz
 *.tar.gz
+
+# Per-router hotspot portal assets. Generated at provision time by
+# ProvisionController::ensureHotspotAssets() — derived output, not source.
+/public/hotspot-files/
