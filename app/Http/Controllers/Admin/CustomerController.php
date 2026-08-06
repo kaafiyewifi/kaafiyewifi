@@ -58,6 +58,7 @@ class CustomerController extends Controller
                 'exists:locations,id',
                 Rule::when(!$this->isSuperAdmin(), ['in:' . ($locationIds->count() ? $locationIds->implode(',') : '0')]),
             ],
+            'password'               => 'required|string|min:6',
             'device_limit'           => 'nullable|integer|min:1',
             'status'                 => 'required|in:active,inactive,suspended',
             'speed_override_enabled' => 'nullable|boolean',
@@ -68,7 +69,11 @@ class CustomerController extends Controller
         ]);
 
         $phone = trim((string) $data['phone']);
-        $defaultPassword = '123456';
+
+        // Set by the admin at creation time. FreeRADIUS PAP needs the
+        // cleartext value, so it is stored in radius_password alongside the
+        // hash used for portal login.
+        $defaultPassword = $data['password'];
         $deviceLimit = (int) ($data['device_limit'] ?? 1);
         $speedOverrideEnabled = (int) $request->input('speed_override_enabled', 0) === 1;
 
@@ -84,6 +89,7 @@ class CustomerController extends Controller
                 'phone'                  => $phone,
                 'username'               => $phone,
                 'password'               => Hash::make($defaultPassword),
+                'radius_password'        => $defaultPassword,
                 'device_limit'           => $deviceLimit,
                 'status'                 => $data['status'],
                 'speed_override_enabled' => $speedOverrideEnabled,
@@ -290,10 +296,10 @@ class CustomerController extends Controller
                 }
 
                 $radius->deleteUser($oldUsername);
-                $radius->createOrUpdateUser($phone, '123456', $data['type']);
+                $this->recreateRadiusUser($radius, $customer, $phone, $data['type']);
             } else {
                 if ($oldType !== $data['type']) {
-                    $radius->createOrUpdateUser($phone, '123456', $data['type']);
+                    $this->recreateRadiusUser($radius, $customer, $phone, $data['type']);
                 }
             }
 
@@ -386,9 +392,11 @@ class CustomerController extends Controller
             ]
         );
 
-        $customer->update([
-            'password' => Hash::make($data['password']),
+    $customer->update([
+        'password'        => Hash::make($data['password']),
+        'radius_password' => $data['password'],
         ]);
+
 
         app(RadiusUserService::class)->createOrUpdateUser($customer->username, $data['password'], $customer->type);
 
@@ -509,6 +517,36 @@ class CustomerController extends Controller
                 'message' => 'Customer lama tirtirin: ' . $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Recreate a customer's RADIUS entry under a new username or service type,
+     * carrying over the password they already have.
+     *
+     * Deliberately does NOT fall back to a default when radius_password is
+     * empty: any constant here becomes a credential shared by every such
+     * account. The customer is instead left unable to authenticate until an
+     * admin sets a password, which is the safe direction to fail.
+     */
+    private function recreateRadiusUser(
+        RadiusUserService $radius,
+        Customer $customer,
+        string $username,
+        string $serviceType
+    ): void {
+        $password = (string) ($customer->radius_password ?? '');
+
+        if ($password === '') {
+            Log::error('RADIUS user not recreated: no stored password', [
+                'customer_id' => $customer->id,
+                'username'    => $username,
+                'action'      => 'admin must set a password via the customer password form',
+            ]);
+
+            return;
+        }
+
+        $radius->createOrUpdateUser($username, $password, $serviceType);
     }
 
     private function writeAuditLog(Request $request, string $action, ?Customer $customer, string $description, array $properties = []): void

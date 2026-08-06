@@ -4,64 +4,171 @@ namespace App\Services\Radius;
 
 use App\Models\Customer;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class RadiusUserService
 {
-    public function createOrUpdateUser(string $username, string $password, string $serviceType = 'hotspot'): void
-    {
-        // CLEAN OLD PASSWORD
-        DB::connection('radius')
-            ->table('radcheck')
-            ->where('username', $username)
-            ->whereIn('attribute', ['Cleartext-Password'])
-            ->delete();
+   public function createOrUpdateUser(string $username, string $password, string $serviceType = 'hotspot'): void
+{
+// REMOVE OLD PASSWORD
+DB::connection('radius')
+->table('radcheck')
+->where('username', $username)
+->where('attribute', 'Cleartext-Password')
+->delete();
 
-        DB::connection('radius')
-            ->table('radcheck')
-            ->insert([
-                'username'  => $username,
-                'attribute' => 'Cleartext-Password',
-                'op'        => ':=',
-                'value'     => $password,
-            ]);
 
-        // REMOVE REJECT IF EXISTS
-        DB::connection('radius')
-            ->table('radcheck')
-            ->where('username', $username)
-            ->where('attribute', 'Auth-Type')
-            ->delete();
+// CREATE OR UPDATE PASSWORD
+DB::connection('radius')
+    ->table('radcheck')
+    ->updateOrInsert(
+        [
+            'username'  => $username,
+            'attribute' => 'Cleartext-Password',
+        ],
+        [
+            'op'    => ':=',
+            'value' => $password,
+        ]
+    );
 
-        $this->syncServiceAttributes($username, $serviceType);
-    }
+// REMOVE ANY OLD REJECT
+DB::connection('radius')
+    ->table('radcheck')
+    ->where('username', $username)
+    ->where('attribute', 'Auth-Type')
+    ->delete();
 
-    public function setUserActive(string $username, string $serviceType = 'hotspot'): void
-    {
-        DB::connection('radius')
-            ->table('radcheck')
-            ->where('username', $username)
-            ->where('attribute', 'Auth-Type')
-            ->delete();
+$this->syncServiceAttributes(
+    $username,
+    $serviceType
+);
 
-        $this->syncServiceAttributes($username, $serviceType);
-    }
 
-    public function setUserInactive(string $username): void
-    {
-        DB::connection('radius')
-            ->table('radcheck')
-            ->updateOrInsert(
-                [
-                    'username'  => $username,
-                    'attribute' => 'Auth-Type',
-                ],
-                [
-                    'op'    => ':=',
-                    'value' => 'Reject',
-                ]
-            );
-    }
+}
+
+
+public function setUserActive(string $username, string $serviceType = 'hotspot'): void
+{
+// REMOVE ANY REJECT RULES
+DB::connection('radius')
+->table('radcheck')
+->where('username', $username)
+->where('attribute', 'Auth-Type')
+->delete();
+
+
+// GET CUSTOMER
+$customer = Customer::where('username', $username)->first();
+
+if ($customer) {
+
+$this->syncServiceAttributes(
+$username,
+$serviceType
+);
+
+$radiusPassword = $customer->radius_password;
+
+if (empty($radiusPassword)) {
+
+// No stored cleartext password to restore.
+//
+// This used to assign '123456' and persist it, which handed every
+// such account the same well-known credential. It must not invent one.
+//
+// Leave radcheck exactly as it is rather than deleting below: a legacy
+// account may already hold a working password here that simply was
+// never mirrored into customers.radius_password, and wiping it would
+// cut off a paying customer. Reactivation is still complete — the
+// Auth-Type reject was already cleared and service attributes synced.
+Log::warning('RADIUS password not restored: customers.radius_password is empty', [
+    'username' => $username,
+    'action'   => 'set a password via the customer password form to manage this account',
+]);
+
+return;
+
+}
+
+
+// REMOVE OLD PASSWORD
+DB::connection('radius')
+    ->table('radcheck')
+    ->where('username', $username)
+    ->where('attribute', 'Cleartext-Password')
+    ->delete();
+
+// RESTORE PASSWORD
+DB::connection('radius')
+->table('radcheck')
+->updateOrInsert(
+[
+'username'  => $username,
+'attribute' => 'Cleartext-Password',
+],
+[
+'op'    => ':=',
+'value' => $radiusPassword,
+]
+);
+
+
+
+}
+
+}
+
+    /**
+     * SAFE INACTIVE METHOD
+     * DO NOT INSERT Auth-Type Reject
+     */
+ public function setUserInactive(string $username): void
+{
+// REMOVE ACTIVE HOTSPOT SESSIONS
+DB::connection('radius')
+->table('radacct')
+->where('username', $username)
+->whereNull('acctstoptime')
+->update([
+'acctstoptime' => now(),
+]);
+
+
+// REMOVE SPEED LIMITS
+DB::connection('radius')
+    ->table('radreply')
+    ->where('username', $username)
+    ->where('attribute', 'Mikrotik-Rate-Limit')
+    ->delete();
+
+// REMOVE SERVICE ATTRIBUTES
+DB::connection('radius')
+    ->table('radreply')
+    ->where('username', $username)
+    ->whereIn('attribute', [
+        'Service-Type',
+        'Framed-Protocol',
+    ])
+    ->delete();
+
+// REMOVE PASSWORD TO BLOCK AUTHENTICATION
+DB::connection('radius')
+->table('radcheck')
+->where('username', $username)
+->where('attribute', 'Cleartext-Password')
+->delete();
+
+// REMOVE ANY AUTH-TYPE RULES
+DB::connection('radius')
+->table('radcheck')
+->where('username', $username)
+->where('attribute', 'Auth-Type')
+->delete();
+
+}
+
 
     public function setUserDeviceLimit(string $username, int $limit): void
     {
@@ -101,12 +208,8 @@ class RadiusUserService
             $downloadUnit
         );
 
-        // REMOVE OLD SPEED
-        DB::connection('radius')
-            ->table('radreply')
-            ->where('username', $username)
-            ->where('attribute', 'Mikrotik-Rate-Limit')
-            ->delete();
+        // CLEAR OLD SPEED
+        $this->clearUserSpeed($username);
 
         DB::connection('radius')
             ->table('radreply')
@@ -163,12 +266,15 @@ class RadiusUserService
             ->sortByDesc('created_at')
             ->first();
 
-        if (!$activeSubscription) return null;
+        if (!$activeSubscription) {
+            return null;
+        }
 
         $plan = $activeSubscription->subscription ?? $activeSubscription->subscription()->first();
-        if (!$plan) return null;
 
-        if (is_null($plan->download_speed)) return null;
+        if (!$plan || is_null($plan->download_speed)) {
+            return null;
+        }
 
         return [
             'download_speed' => (int) $plan->download_speed,
@@ -195,7 +301,6 @@ class RadiusUserService
     {
         $serviceType = strtolower(trim($serviceType));
 
-        // CLEAN OLD ATTRIBUTES (IMPORTANT FIX)
         DB::connection('radius')
             ->table('radreply')
             ->where('username', $username)

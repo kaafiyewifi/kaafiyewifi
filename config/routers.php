@@ -26,9 +26,12 @@ return [
 
     'bootstrap_api_user' => env('ROUTER_BOOTSTRAP_API_USER', 'system_api'),
 
-    // Optional static API user/pass (if you ever want to use them)
+    // Optional static API user/pass (if you ever want to use them).
+    // No fallback for the password on purpose: a default here would be a
+    // published credential, and callers should fail loudly on a missing
+    // ROUTER_API_PASS rather than silently authenticate with a known value.
     'api_user' => env('ROUTER_API_USER', 'kaafiye'),
-    'api_pass' => env('ROUTER_API_PASS', 'ChangeMeStrong!'),
+    'api_pass' => env('ROUTER_API_PASS', ''),
 
     /*
     |--------------------------------------------------------------------------

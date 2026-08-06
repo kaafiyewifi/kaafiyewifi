@@ -70,6 +70,23 @@
                 >
             </div>
 
+            {{-- PASSWORD --}}
+            <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
+                <input
+                    type="text"
+                    name="password"
+                    value="{{ old('password') }}"
+                    required
+                    minlength="6"
+                    autocomplete="off"
+                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-orange-900/30"
+                >
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Ugu yaraan 6 xaraf. Macmiilka ayaa WiFi-ga ku gelaya — u sheeg.
+                </p>
+            </div>
+
             {{-- LOCATION --}}
             <div>
                 <label class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Location</label>
