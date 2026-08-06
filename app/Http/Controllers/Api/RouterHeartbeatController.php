@@ -89,7 +89,9 @@ class RouterHeartbeatController extends Controller
         $routerUpdates = [];
 
         if (Schema::hasColumn($routerTable, 'status')) {
-            $routerUpdates['status'] = 'online';
+            // 'connected' is the canonical up-state (App\Enums\RouterStatus),
+            // matching PollRouterStatusJob and routers:sync-status.
+            $routerUpdates['status'] = 'connected';
         }
 
         if (Schema::hasColumn($routerTable, 'last_seen_at')) {
@@ -202,7 +204,7 @@ class RouterHeartbeatController extends Controller
         return response()->json([
             'ok' => true,
             'router_id' => $router->id,
-            'status' => 'online',
+            'status' => 'connected',
         ], 200);
     }
 }

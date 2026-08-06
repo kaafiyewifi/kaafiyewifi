@@ -30,12 +30,15 @@ class SyncRouterStatuses extends Command
 
         $threshold = Carbon::now()->subMinutes($minutes);
 
-        // Routers seen recently => online
+        // Routers seen recently => connected
+        // NOTE: 'connected' is the canonical up-state (App\Enums\RouterStatus).
+        // 'online' is legacy data written before this command was aligned with
+        // PollRouterStatusJob; keep matching it so old rows get normalised.
         $onlineCount = Router::query()
             ->whereNotNull('last_seen_at')
             ->where('last_seen_at', '>=', $threshold)
-            ->whereIn('status', ['pending', 'provisioned', 'offline', 'error', 'connected'])
-            ->update(['status' => 'online']);
+            ->whereIn('status', ['pending', 'provisioned', 'offline', 'error', 'online'])
+            ->update(['status' => 'connected']);
 
         // Routers stale => offline
         $offlineCount = Router::query()
@@ -44,7 +47,7 @@ class SyncRouterStatuses extends Command
             ->whereIn('status', ['online', 'connected', 'provisioned'])
             ->update(['status' => 'offline']);
 
-        $this->info("Routers marked online: {$onlineCount}");
+        $this->info("Routers marked connected: {$onlineCount}");
         $this->info("Routers marked offline: {$offlineCount}");
 
         return self::SUCCESS;
